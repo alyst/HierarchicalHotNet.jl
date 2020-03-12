@@ -127,7 +127,7 @@ cut(tree::SCCTree, threshold::Number; kwargs...) =
 
 function cut!(comps::IndicesPartition, tree::SCCTree, threshold::Number;
               minsize::Integer=1)
-    reset!(comps, n=0)
+    reset!(comps, 0)
     if !isempty(tree.nodes)
         cut_subtree!(comps, tree, threshold, minsize, 1,
                      first(tree.nodes).threshold)

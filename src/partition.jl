@@ -60,7 +60,7 @@ Resets `IntegerPartition`.
 If `ngroups == 1`, the partition is reset into `[[1, 2, 3, ..., n]]`.
 If `n == ngroups`, sets the partition to `[[1], [2], [3], ..., [n]]`.
 """
-function reset!(p::IndicesPartition; n::Integer=length(p.elems), ngroups::Integer=n)
+function reset!(p::IndicesPartition, n::Integer=length(p.elems); ngroups::Integer=n)
     if (ngroups != n) && (ngroups != 1)
         throw(ArgumentError("No default method to divide $n element(s) into $ngroups group(s)"))
     end

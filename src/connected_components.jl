@@ -11,7 +11,7 @@ function strongly_connected_components!(components::IndicesPartition,
     nnodes = size(adjmtx, 1)
     nnodes == size(adjmtx, 2) ||
         throw(DimensionMismatch("adjmtx has to be square, $(size(adjmtx)) found"))
-    reset!(components, n=0)
+    reset!(components, 0)
     index = fill(0, nnodes)     # first time the vertex was visited, 0=unseen
     stack = Vector{Int}()       # stores vertices which have been discovered and not yet assigned to any component
     onstack = falses(nnodes)    # false if a vertex is waiting in the stack to receive a component assignment
