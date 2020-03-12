@@ -34,7 +34,7 @@ function similarity_matrix(g::AbstractSimpleWeightedGraph,
                            node_weights::AbstractVector;
                            restart_probability::Number = 0.1)
     return random_walk_matrix(g, restart_probability=restart_probability) *
-           diagm(0 => node_weights)
+           Diagonal(node_weights)
 end
 
 function neighborhood_weights(adjmtx::AbstractMatrix, g::AbstractGraph)
