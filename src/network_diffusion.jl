@@ -38,9 +38,9 @@ function similarity_matrix(g::AbstractSimpleWeightedGraph,
 end
 
 function neighborhood_weights(adjmtx::AbstractMatrix, g::AbstractGraph)
-    size(adjmtx, 1) == size(adjmtx, 2) || throw(DimensionMismatch("Square matrix expected, $(size(adjmtx)) given"))
+    size(adjmtx, 1) == size(adjmtx, 2) || throw(DimensionMismatch("Square adjacency matrix expected, $(size(adjmtx)) given"))
     n = size(adjmtx, 1)
-    n == nv(g) || throw(DimensionMismatch("Adjacency matrix cols ($n) don't match the graph vertices $(nv(g))"))
+    (n == nv(g)) || throw(DimensionMismatch("Adjacency matrix columns ($n) do not match the number of graph vertices ($(nv(g)))"))
     return [sum(j -> j != i ? weights[j] : 0.0, neighborhood(g, i, 1))
             for (i, weights) in enumerate(eachcol(adjmtx))]
 end
