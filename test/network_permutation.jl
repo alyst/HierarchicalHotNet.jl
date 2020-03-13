@@ -10,3 +10,25 @@
         @test length(bins) <= 10
     end
 end
+
+@testset "randpermgroups()" begin
+    @test HHN.randpermgroups(Vector{Int}[]) == Int[]
+    x = Int[]
+    @test HHN.randpermgroups!(x, Vector{Int}[]) === x
+    @test isempty(x)
+    @test HHN.randpermgroups!(x, HHN.IndicesPartition(0)) === x
+    @test_throws DimensionMismatch HHN.randpermgroups!([1], Vector{Int}[])
+    @test_throws DimensionMismatch HHN.randpermgroups!([1], HHN.IndicesPartition(0))
+    @test_throws DimensionMismatch HHN.randpermgroups!([1], [[1], [2]])
+    @test_throws DimensionMismatch HHN.randpermgroups!([1], HHN.IndicesPartition(2))
+    @test_throws DimensionMismatch HHN.randpermgroups!(Int[], [[1]])
+    @test_throws DimensionMismatch HHN.randpermgroups!(Int[], HHN.IndicesPartition(1))
+    @test_throws DimensionMismatch HHN.randpermgroups!(Int[], HHN.IndicesPartition(2))
+    @test HHN.randpermgroups([[1], [2], [3], [4], [5]]) == 1:5
+    @test HHN.randpermgroups(HHN.IndicesPartition(5)) == 1:5
+
+    for i in 1:10
+        @test HHN.randpermgroups([[1, 3], [2, 4]]) ∈ [[1, 2, 3, 4], [3, 2, 1, 4],
+                                                      [3, 4, 1, 2], [1, 4, 3, 2]]
+    end
+end
