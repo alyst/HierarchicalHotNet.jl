@@ -1,5 +1,5 @@
 using Test
-using SparseArrays, HierarchicalHotNet, SimpleWeightedGraphs, LightGraphs
+using HierarchicalHotNet, SimpleWeightedGraphs, LightGraphs
 
 const HHN = HierarchicalHotNet
 
