@@ -1,24 +1,28 @@
 """
 Distribute the vertices of the weighted graph `g` into `nbins` bins,
-so that the vertices that have similar sum of outgoing edges are put into
-the same bin.
+so that the vertices that have similar sum of outgoing/incoming edges are
+put into the same bin.
 """
 function vertexbins(g::AbstractSimpleWeightedGraph;
-                    nbins::Integer=10)
-    wvtxs = vec(sum(weights(g), dims=1))
-    vdescorder = sortperm(wvtxs, rev=true)
+                    by::Symbol=:out, nbins::Integer=10)
+    if (by == :in) || (by == :out)
+        wvtxs = vec(sum(weights(g), dims=by == :out ? 1 : 2))
+        vorder = sortperm(wvtxs, rev=true)
+    else
+        throw(ArgumentError("Unsupported by=$by"))
+    end
     binstarts = Vector{Int}(undef, nbins+1)
-    maxbinsize = fld1(length(wvtxs), nbins)
+    maxbinsize = fld1(length(vorder), nbins)
     curpos = 1
     for i in 1:nbins
         binstarts[i] = curpos
         curpos += maxbinsize
-        if curpos > length(vdescorder)
-            curpos = length(vdescorder) + 1
+        if curpos > length(vorder)
+            curpos = length(vorder) + 1
         end
     end
-    binstarts[end] = length(vdescorder) + 1
-    return IndicesPartition(vdescorder, binstarts)
+    binstarts[end] = length(vorder) + 1
+    return IndicesPartition(vorder, binstarts)
 end
 
 """
