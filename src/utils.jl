@@ -83,17 +83,34 @@ elements defined by `row_groups` and `col_groups`.
   maximal value of the block (i.e. the edge with the highest weight). Otherwise,
   it's the minimal value (the edge with the smallest weight).
 """
-function condense(A::AbstractMatrix,
-                  row_groups::AbstractPartition,
-                  col_groups::AbstractPartition = row_groups;
-                  skipval::Union{Number, Nothing} = zero(eltype(A)),
-                  rev::Bool=false)
+condense(A::AbstractMatrix,
+         row_groups::AbstractPartition,
+         col_groups::AbstractPartition = row_groups; kwargs...) =
+    condense!(similar(A, length(row_groups), length(col_groups)), A,
+              row_groups, col_groups; kwargs...)
+
+"""
+"Condenses" the matrix `A` by aggregating the values in the blocks of its
+elements defined by `row_groups` and `col_groups`.
+
+# Arguments
+* `rev::Bool`, defaults to `false`: if false, the aggregated value is the
+  maximal value of the block (i.e. the edge with the highest weight). Otherwise,
+  it's the minimal value (the edge with the smallest weight).
+"""
+function condense!(B::AbstractMatrix,
+                   A::AbstractMatrix,
+                   row_groups::AbstractPartition,
+                   col_groups::AbstractPartition = row_groups;
+                   skipval::Union{Number, Nothing} = zero(eltype(A)),
+                   rev::Bool=false)
     nrows = nelems(row_groups)
     ncols = nelems(col_groups)
     size(A) == (nrows, ncols) ||
         throw(DimensionMismatch("A size ($(size(A))) and row/col labels sizes ($nrows, $ncols) do not match."))
-    B = fill!(similar(A, length(row_groups), length(col_groups)),
-              defaultweight(eltype(A), skipval=skipval, rev=rev))
+    size(B) == (length(row_groups), length(col_groups)) ||
+        throw(DimensionMismatch("B size ($(size(B))) and row/col group number ($(length(row_groups)), $(length(col_groups))) do not match."))
+    fill!(B, defaultweight(eltype(A), skipval=skipval, rev=rev))
     @inbounds for (jj, cols) in enumerate(col_groups)
         B_j = view(B, :, jj)
         for j in cols
