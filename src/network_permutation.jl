@@ -8,6 +8,21 @@ function vertexbins(g::AbstractSimpleWeightedGraph;
     if (by == :in) || (by == :out)
         wvtxs = vec(sum(weights(g), dims=by == :out ? 1 : 2))
         vorder = sortperm(wvtxs, rev=true)
+    elseif by == :outXin
+        nbins_inner = 2^ceil(Int, log2(sqrt(nbins)))
+        # bin vertices by in and out edges
+        bin_out = fill(0, nv(g))
+        for (i, els) in enumerate(vertexbins(g, by=:out, nbins=nbins_inner))
+            @inbounds bin_out[els] .= i
+        end
+        bin_in = fill(0, nv(g))
+        for (i, els) in enumerate(vertexbins(g, by=:in, nbins=nbins_inner))
+            @inbounds bin_in[els] .= i
+        end
+        # calculate vertex positions on the hibert curve going through the in and out bin ids
+        vtx_hilberpos = hilbertorder.(bin_out, bin_in, nbins_inner)
+        # sort vertices by hilber position
+        vorder = sortperm(vtx_hilberpos)
     else
         throw(ArgumentError("Unsupported by=$by"))
     end
