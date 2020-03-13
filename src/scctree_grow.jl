@@ -25,6 +25,8 @@ mutable struct SCCSeedling{T, I}
     stamp::Int # next stamp id to use in sortediweights()
     weight_stamps::Vector{Int} # helper array to stamp values observed in adjmtx
 
+    indices_pool::ArrayPool{Int}
+
     function SCCSeedling(adjmtx::AbstractMatrix{T};
                          skipval::Union{Number, Nothing}=zero(eltype(adjmtx)),
                          rev::Bool=false) where T
@@ -41,7 +43,8 @@ mutable struct SCCSeedling{T, I}
         nv = size(adjmtx, 1)
         new{T,I}(rev, iadjmtx, weights, Vector{SCCSeedlingNode{I}}(),
                  fill(0, nv),
-                 ArrayPool{I}(nv), 1, fill(0, length(weights)))
+                 ArrayPool{I}(nv), 1, fill(0, length(weights)),
+                 ArrayPool{Int}(nv*10))
     end
 end
 
@@ -162,7 +165,7 @@ function scctree_bottomup!(tree::SCCSeedling; verbose::Bool=false)
     comps = IndicesPartition(nvertices(tree), ngroups=nvertices(tree)) # reusable partition of vertices into components
     ncomps = length(comps)
     for threshold in length(tree.weights):-1:1
-        strongly_connected_components!(comps, tree.iadjmtx, threshold=threshold)
+        strongly_connected_components!(comps, tree.iadjmtx, tree.indices_pool, threshold=threshold)
         (length(comps) == ncomps) && continue # same components as for the stronger threshold
         ncomps = length(comps) # new partition
         verbose && @info("$(ncomps) components detected at threshold=$threshold")
@@ -240,7 +243,7 @@ function scctree_bisect_subtree!(tree::SCCSeedling, adjmtx::AbstractMatrix{<:Int
         if nodes_lev <= subtree_lev + 1 # all bisections checked
             if subtree_threshold == 0 # it's the root subtree (all others should have subtree threshold)
                 # check if graph has multiple connected components
-                strongly_connected_components!(comps, adjmtx,
+                strongly_connected_components!(comps, adjmtx, tree.indices_pool,
                                                threshold=weights[subtree_lev])
                 if length(comps) == 1
                     # it's a connected graph, so assign the threshold to the root
