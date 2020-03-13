@@ -27,6 +27,9 @@ mutable struct SCCSeedling{T, I}
 
     indices_pool::ArrayPool{Int}
 
+    nptns_borrowed::Int
+    ptns_pool::Vector{IndicesPartition}
+
     function SCCSeedling(adjmtx::AbstractMatrix{T};
                          skipval::Union{Number, Nothing}=zero(eltype(adjmtx)),
                          rev::Bool=false) where T
@@ -45,7 +48,8 @@ mutable struct SCCSeedling{T, I}
                  fill(0, nv),
                  ArrayPool{I}(max(10, nv*10)),
                  1, fill(0, length(weights)),
-                 ArrayPool{Int}(max(10, nv*10)))
+                 ArrayPool{Int}(max(10, nv*10)),
+                 0, Vector{IndicesPartition}())
     end
 end
 
@@ -72,6 +76,23 @@ function sortediweights(tree::SCCSeedling{T, I}, arr::AbstractArray{I},
         end
     end
     return weights
+end
+
+function partition(tree::SCCSeedling, n::Integer; ngroups::Integer=n)
+    if tree.nptns_borrowed >= max(10, length(tree.weights))
+        error("partition() called $(tree.nptns_borrowed) time(s) without matching releasepartition()")
+    end
+    tree.nptns_borrowed += 1
+    return isempty(tree.ptns_pool) ?
+            IndicesPartition(n, ngroups=ngroups) :
+            reset!(pop!(tree.ptns_pool), n, ngroups=ngroups)
+end
+
+# releases the weights vector back to the bool
+function release!(tree::SCCSeedling, ptn::IndicesPartition)
+    @assert tree.nptns_borrowed > 0
+    tree.nptns_borrowed -= 1
+    push!(tree.ptns_pool, ptn)
 end
 
 # appends one node to the tree for each part `comps`
@@ -207,9 +228,10 @@ function scctree_bisect_subtree!(tree::SCCSeedling, adjmtx::AbstractMatrix{<:Int
         # i.e. the original graph has multple connected components
         @assert subtree_threshold == 0 # no edge weights could be only in the root (condensed) graph
         verbose && @info("No edges, creating the root node to join connected components")
-        append_components!(tree, IndicesPartition(length(subtree), ngroups=1),
-                           subtree, subtree_threshold)
+        onecomp = partition(tree, length(subtree), ngroups=1)
+        append_components!(tree, onecomp, subtree, subtree_threshold)
         release!(tree.iweights_pool, weights)
+        release!(tree, onecomp)
         return length(tree.nodes)
     end
 
@@ -237,7 +259,7 @@ function scctree_bisect_subtree!(tree::SCCSeedling, adjmtx::AbstractMatrix{<:Int
 
     nnodes = length(subtree)
     # initialize with trivial components
-    comps = IndicesPartition(nnodes, ngroups=nnodes)
+    comps = partition(tree, nnodes, ngroups=nnodes)
     # search for non-trivial dissection
     bisect_threshold = NaN
     while true
@@ -260,6 +282,7 @@ function scctree_bisect_subtree!(tree::SCCSeedling, adjmtx::AbstractMatrix{<:Int
             # reset to a single component
             append_components!(tree, reset!(comps, ngroups=1), subtree, subtree_threshold)
             release!(tree.iweights_pool, weights)
+            release!(tree, comps)
             return length(tree.nodes)
         end
 
@@ -323,5 +346,6 @@ function scctree_bisect_subtree!(tree::SCCSeedling, adjmtx::AbstractMatrix{<:Int
     release!(tree.iweights_pool, weights)
     release!(tree.iweights_pool, comps_adjmtx)
     release!(tree.indices_pool, comp_roots)
+    release!(tree, comps)
     return res
 end
