@@ -1,6 +1,6 @@
 module HierarchicalHotNet
 
-using Random, LinearAlgebra, LightGraphs, SimpleWeightedGraphs
+using Random, LinearAlgebra, LightGraphs, SimpleWeightedGraphs, Clustering, Distances
 
 include("array_pool.jl")
 include("partition.jl")

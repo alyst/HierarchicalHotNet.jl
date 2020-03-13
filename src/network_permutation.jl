@@ -4,7 +4,18 @@ so that the vertices that have similar sum of outgoing/incoming edges are
 put into the same bin.
 """
 function vertexbins(g::AbstractSimpleWeightedGraph;
-                    by::Symbol=:out, nbins::Integer=10)
+                    by::Symbol=:out, method=:tree, kwargs...)
+    if method == :sort
+        return vertexbins_sort(g; by=by, kwargs...)
+    elseif method == :tree
+        return vertexbins_tree(g; by=by, kwargs...)
+    else
+        throw(ArgumentError("Unsupported vertex binning method=:$method"))
+    end
+end
+
+function vertexbins_sort(g::AbstractSimpleWeightedGraph;
+                         by::Symbol=:out, nbins::Integer=10)
     if (by == :in) || (by == :out)
         wvtxs = vec(sum(weights(g), dims=by == :out ? 1 : 2))
         vorder = sortperm(wvtxs, rev=true)
@@ -38,6 +49,23 @@ function vertexbins(g::AbstractSimpleWeightedGraph;
     end
     binstarts[end] = length(vorder) + 1
     return IndicesPartition(vorder, binstarts)
+end
+
+function vertexbins_tree(g::AbstractSimpleWeightedGraph;
+                         by::Symbol=:out, nbins::Integer=10,
+                         weightf=sqrt, distf=sqrt)
+    # vertex distances based on the in- and/or outcoming weights
+    if (by == :in) || (by == :out)
+        wvtxs = reshape(sum(weightf, weights(g), dims=by == :out ? 1 : 2), (1, nv(g)))
+    elseif by == :outXin
+        wvtxs = vcat(reshape(sum(weightf, weights(g), dims=1), (1, nv(g))),
+                     reshape(sum(weightf, weights(g), dims=2), (1, nv(g))))
+    else
+        throw(ArgumentError("Unsupported by=$by"))
+    end
+    wdists = pairwise(Euclidean(), wvtxs, dims=2)
+    wtree = hclust(distf.(wdists), linkage=:ward, branchorder=:optimal)
+    return valuegroups(cutree(wtree, k=nbins))
 end
 
 """
