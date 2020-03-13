@@ -8,5 +8,6 @@ include("partition.jl")
 @testset "utils.jl" begin
     include("utils.jl")
 end
+include("network_permutation.jl")
 include("connected_components.jl")
 include("scctree.jl")
