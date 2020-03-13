@@ -43,8 +43,9 @@ mutable struct SCCSeedling{T, I}
         nv = size(adjmtx, 1)
         new{T,I}(rev, iadjmtx, weights, Vector{SCCSeedlingNode{I}}(),
                  fill(0, nv),
-                 ArrayPool{I}(nv), 1, fill(0, length(weights)),
-                 ArrayPool{Int}(nv*10))
+                 ArrayPool{I}(max(10, nv*10)),
+                 1, fill(0, length(weights)),
+                 ArrayPool{Int}(max(10, nv*10)))
     end
 end
 
@@ -284,8 +285,8 @@ function scctree_bisect_subtree!(tree::SCCSeedling, adjmtx::AbstractMatrix{<:Int
     # multiple components
     verbose && @info("Building subtrees of each of $ncomps SCCs")
     # build a graph of components relationships
-    comp_roots = Vector{Int}()  # nodes of the roots of subtrees for each component
-    comp_subtree = Vector{Int}() # reusable vector for component subtree refs
+    comp_roots = borrow!(tree.indices_pool, 0)  # nodes of the roots of subtrees for each component
+    comp_subtree = borrow!(tree.indices_pool, 0) # reusable vector for component subtree refs
     # recurse into each of multiple components
     for (i, comp_indices) in enumerate(comps)
         # build the subtree for the current component
@@ -305,6 +306,7 @@ function scctree_bisect_subtree!(tree::SCCSeedling, adjmtx::AbstractMatrix{<:Int
         end
         push!(comp_roots, comp_root)
     end
+    release!(tree.indices_pool, comp_subtree)
 
     # build a graph of components relationships
     comps_adjmtx = condense(adjmtx, comps)
@@ -318,5 +320,6 @@ function scctree_bisect_subtree!(tree::SCCSeedling, adjmtx::AbstractMatrix{<:Int
                                   subtree_threshold, bisect_threshold,
                                   weights, verbose=verbose)
     release!(tree.iweights_pool, weights)
+    release!(tree.indices_pool, comp_roots)
     return res
 end
