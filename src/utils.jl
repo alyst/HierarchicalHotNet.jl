@@ -59,6 +59,7 @@ end
 function sortedvalues(A::AbstractArray{T};
                       skipval::Union{Number, Nothing} = zero(eltype(A)),
                       threshold::Union{Number, Nothing}=nothing,
+                      alg=Base.Sort.defalg(A),
                       rev::Bool=false) where T
     isempty(A) && return Vector{T}()
     res = Vector{T}()
@@ -69,7 +70,7 @@ function sortedvalues(A::AbstractArray{T};
             push!(res, a)
         end
     end
-    unique!(sort!(res, rev=rev))
+    unique!(sort!(res, alg=alg, rev=rev))
     return res
 end
 
