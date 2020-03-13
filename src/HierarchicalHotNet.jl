@@ -2,6 +2,7 @@ module HierarchicalHotNet
 
 using Random, LinearAlgebra, LightGraphs, SimpleWeightedGraphs
 
+include("array_pool.jl")
 include("partition.jl")
 include("utils.jl")
 include("network_diffusion.jl")

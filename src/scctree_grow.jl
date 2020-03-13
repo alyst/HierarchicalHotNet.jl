@@ -21,8 +21,7 @@ mutable struct SCCSeedling{T, I}
     nodes::Vector{SCCSeedlingNode{I}} # nodes of the growing tree
     vertexnodes::Vector{Int} # maps graph verticex to the index of the node it is directly attached to
 
-    nweights_borrowed::Int          # number of times iweight vector borrow from the pool without returning
-    weights_pool::Vector{Vector{I}} # pool of iweight vectors
+    iweights_pool::ArrayPool{I} # pool of iweight vectors
     stamp::Int # next stamp id to use in sortediweights()
     weight_stamps::Vector{Int} # helper array to stamp values observed in adjmtx
 
@@ -39,9 +38,10 @@ mutable struct SCCSeedling{T, I}
                 iadjmtx[i] = weightdict[a]#searchsortedfirst(weights, a, rev=rev)
             end
         end
+        nv = size(adjmtx, 1)
         new{T,I}(rev, iadjmtx, weights, Vector{SCCSeedlingNode{I}}(),
-                 fill(0, size(iadjmtx, 1)),
-                 0, Vector{Vector{I}}(), 1, fill(0, length(weights)))
+                 fill(0, nv),
+                 ArrayPool{I}(nv), 1, fill(0, length(weights)))
     end
 end
 
@@ -52,9 +52,7 @@ nvertices(tree::SCCSeedling) = length(tree.vertexnodes)
 # of unique values present in `arr`.
 function sortediweights(tree::SCCSeedling{T, I}, arr::AbstractArray{I},
                         superset::AbstractArray) where {T, I}
-    if tree.nweights_borrowed >= max(10, length(tree.weights))
-        error("sortediweights() called $(tree.nweights_borrowed) time(s) without matching releaseiweights!()")
-    end
+    weights = empty!(borrow!(tree.iweights_pool, length(superset)))
     # generate the unique stamp
     stamp = (tree.stamp += 1)
     # stamp all observed values
@@ -63,11 +61,6 @@ function sortediweights(tree::SCCSeedling{T, I}, arr::AbstractArray{I},
             tree.weight_stamps[iw] = stamp
         end
     end
-    # borrow weights array from the pool
-    tree.nweights_borrowed += 1
-    weights = empty!(isempty(tree.weights_pool) ?
-                     sizehint!(Vector{I}(), length(superset)) :
-                     pop!(tree.weights_pool))
     # only look at the superset values and collect those that have the current stamp
     @inbounds for iw in superset
         if tree.weight_stamps[iw] == stamp
@@ -75,13 +68,6 @@ function sortediweights(tree::SCCSeedling{T, I}, arr::AbstractArray{I},
         end
     end
     return weights
-end
-
-# releases the weights vector back to the bool
-function releaseiweights(tree::SCCSeedling, weights::Vector)
-    @assert tree.nweights_borrowed > 0
-    tree.nweights_borrowed -= 1
-    push!(tree.weights_pool, weights)
 end
 
 # appends one node to the tree for each part `comps`
@@ -212,14 +198,14 @@ function scctree_bisect_subtree!(tree::SCCSeedling, adjmtx::AbstractMatrix{<:Int
                                  verbose::Bool=false) where T
     verbose && @info "scctree_bisect_range!($(subtree) nodes, subtree_threshold=$subtree_threshold, nodes_threshold=$nodes_threshold)"
     weights = sortediweights(tree, adjmtx, parent_weights)
-    # releaseiweights(tree, weights) should be called before returning from this function
+    # release!(tree.iweights_pool, weights) should be called before returning from this function
     if isempty(weights) # (condensed) graph with no edges
         # i.e. the original graph has multple connected components
         @assert subtree_threshold == 0 # no edge weights could be only in the root (condensed) graph
         verbose && @info("No edges, creating the root node to join connected components")
         append_components!(tree, IndicesPartition(length(subtree), ngroups=1),
                            subtree, subtree_threshold)
-        releaseiweights(tree, weights)
+        release!(tree.iweights_pool, weights)
         return length(tree.nodes)
     end
 
@@ -269,7 +255,7 @@ function scctree_bisect_subtree!(tree::SCCSeedling, adjmtx::AbstractMatrix{<:Int
             verbose && @info("Creating a node for subtree $subtree at subtree_lev=$subtree_lev, nodes_lev=$nodes_lev")
             # reset to a single component
             append_components!(tree, reset!(comps, ngroups=1), subtree, subtree_threshold)
-            releaseiweights(tree, weights)
+            release!(tree.iweights_pool, weights)
             return length(tree.nodes)
         end
 
@@ -328,6 +314,6 @@ function scctree_bisect_subtree!(tree::SCCSeedling, adjmtx::AbstractMatrix{<:Int
     res = scctree_bisect_subtree!(tree, comps_adjmtx, comp_roots,
                                   subtree_threshold, bisect_threshold,
                                   weights, verbose=verbose)
-    releaseiweights(tree, weights)
+    release!(tree.iweights_pool, weights)
     return res
 end
