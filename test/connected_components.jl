@@ -12,4 +12,8 @@
     @test HHN.strongly_connected_components(HHN.tarjan1983_example_graph().weights, threshold=100) == [[1], [2], [3], [4], [5], [6], [7]]
     @test HHN.strongly_connected_components(HHN.tarjan1983_example_graph().weights, threshold=20) == [[1], [5], [2, 3, 7], [4], [6]]
     @test HHN.strongly_connected_components(HHN.tarjan1983_example_graph().weights, threshold=10) == [[1, 2, 3, 4, 5, 7], [6]]
+
+    pool = HHN.ArrayPool{Int}()
+    @test HHN.strongly_connected_components(HHN.tarjan1983_example_graph().weights, pool, threshold=10) == [[1, 2, 3, 4, 5, 7], [6]]
+    @test pool.nborrowed == 0
 end
