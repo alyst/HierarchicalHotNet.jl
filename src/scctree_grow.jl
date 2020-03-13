@@ -309,7 +309,8 @@ function scctree_bisect_subtree!(tree::SCCSeedling, adjmtx::AbstractMatrix{<:Int
     release!(tree.indices_pool, comp_subtree)
 
     # build a graph of components relationships
-    comps_adjmtx = condense(adjmtx, comps)
+    comps_adjmtx = condense!(borrow!(tree.iweights_pool, (length(comps), length(comps))),
+                             adjmtx, comps)
     # clear the diagonal
     @inbounds for i in axes(comps_adjmtx, 1)
         comps_adjmtx[i, i] = 0
@@ -320,6 +321,7 @@ function scctree_bisect_subtree!(tree::SCCSeedling, adjmtx::AbstractMatrix{<:Int
                                   subtree_threshold, bisect_threshold,
                                   weights, verbose=verbose)
     release!(tree.iweights_pool, weights)
+    release!(tree.iweights_pool, comps_adjmtx)
     release!(tree.indices_pool, comp_roots)
     return res
 end
