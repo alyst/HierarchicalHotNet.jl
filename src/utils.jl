@@ -130,3 +130,37 @@ function condense!(B::AbstractMatrix,
     end
     return B
 end
+
+# position on the Hilbert curve
+"""
+    hilbertorder(i::Integer, j::Integer, n::Integer)
+
+Get the index of the point `(i, j)` on the *Hilbert curve* that passes through
+the points of `n×n` grid, where `n` is some power of 2.
+"""
+function hilbertorder(i::Integer, j::Integer, n::Integer)
+    (n > 0) || throw(ArgumentError("n must be positive, n=$n given"))
+    (i > 0) || throw(ArgumentError("i must be positive, i=$i given"))
+    (j > 0) || throw(ArgumentError("j must be positive, j=$j given"))
+    d = 1
+    s = n
+    i -= 1
+    j -= 1
+    n -= 1
+    while s > 1
+        s >>= 1
+        ri = (i & s) > 0
+        rj = (j & s) > 0
+        if ri && rj
+            d += 2s*s
+        elseif ri && !rj
+            d += s*s
+        elseif !ri && rj
+            d += 3s*s
+            i, j = n - j, n - i
+        else
+            i, j = j, i
+        end
+    end
+    return d
+end

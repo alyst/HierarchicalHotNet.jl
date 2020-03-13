@@ -87,3 +87,18 @@ end
     @test HHN.insertsorted!([1, 1], 1) == [1, 1, 1]
     @test HHN.insertsorted!([1, 1, 2, 2], 1) == [1, 1, 1, 2, 2]
 end
+
+@testset "hilbertorder()" begin
+    @test_throws ArgumentError HHN.hilbertorder(1, 1, 0)
+    @test_throws ArgumentError HHN.hilbertorder(1, 1, -1)
+    @test_throws ArgumentError HHN.hilbertorder(0, 1, 1)
+    @test_throws ArgumentError HHN.hilbertorder(1, 0, 1)
+
+    @test HHN.hilbertorder(1, 1, 1) == 1
+    @test HHN.hilbertorder.([1, 2, 1, 2], [1, 1, 2, 2], 2) == [1, 2, 4, 3]
+    ci4x4 = CartesianIndices((4, 4))
+    @test HHN.hilbertorder.(getindex.(ci4x4, 1), getindex.(ci4x4, 2), 4) ==
+           [1 2 15 16; 4 3 14 13; 5 8 9 12; 6 7 10 11]
+    ci16x16 = CartesianIndices((16, 16))
+    @test length(unique!(vec(HHN.hilbertorder.(getindex.(ci16x16, 1), getindex.(ci16x16, 2), 16)))) == 256
+end
