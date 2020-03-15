@@ -158,7 +158,7 @@ function cut_subtree!(comps::IndicesPartition, tree::SCCTree,
         if minsize <= 1
             @inbounds for vertex in node.vertices
                 pushelem!(comps, vertex)
-                closepart!(comps, sort=true)
+                closepart!(comps)
             end
         end
         return
@@ -166,7 +166,8 @@ function cut_subtree!(comps::IndicesPartition, tree::SCCTree,
     if (nodeindex == 1) || isnan(parent_threshold) ||
        isweaker(parent_threshold, threshold, rev=tree.rev)
         #@info "node #$(nodeindex) (size=$(node.nvertices), threshold=$(node.threshold)): parent threshold is $(parent_threshold), so advancing component $(nextcompindex+1)"
-        closepart!(comps, sort=true)
+        closepart!(comps)
+        sort!(comps[end]) # sort the vertices in a component
     end
     nothing
 end

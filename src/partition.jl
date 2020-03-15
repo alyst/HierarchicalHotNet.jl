@@ -29,9 +29,8 @@ partrange(ptn::Partition, i::Integer) = ptn.starts[i]:ptn.starts[i+1]-1
 pushelem!(ptn::Partition, el) = push!(ptn.elems, el)
 # finalize the current part
 # all subsequent pushelem!() will add elements to the next part
-function closepart!(ptn::Partition; sort::Bool=false)
+function closepart!(ptn::Partition)
     push!(ptn.starts, length(ptn.elems) + 1)
-    sort && sort!(ptn[end])
     return ptn
 end
 

@@ -47,12 +47,14 @@
 
         HHN.pushelem!(ptn, 'E')
         HHN.pushelem!(ptn, 'D')
-        HHN.closepart!(ptn, sort=true)
+        HHN.closepart!(ptn)
         @test HHN.nelems(ptn) == 5
         @test HHN.nparts(ptn) == 3
         @test length(ptn) == 3
         @test ptn[1] == ['A']
         @test ptn[2] == ['C', 'B']
+        @test ptn[3] == ['E', 'D']
+        sort!(ptn[3])
         @test ptn[3] == ['D', 'E']
 
         i = 0

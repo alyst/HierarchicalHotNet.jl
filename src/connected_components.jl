@@ -74,7 +74,7 @@ function strongly_connected_components!(components::IndicesPartition,
                         end
                     end
                     # finish the component
-                    closepart!(components, sort=true)
+                    closepart!(components)
                 end
             else #LABEL A
                 # add unvisited neighbor to dfs
