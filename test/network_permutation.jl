@@ -17,18 +17,30 @@ end
     @test HHN.randpermgroups!(x, Vector{Int}[]) === x
     @test isempty(x)
     @test HHN.randpermgroups!(x, HHN.IndicesPartition(0)) === x
-    @test_throws DimensionMismatch HHN.randpermgroups!([1], Vector{Int}[])
-    @test_throws DimensionMismatch HHN.randpermgroups!([1], HHN.IndicesPartition(0))
+
+    # some tests disabled since groups could be a subset of the indices
+    #@test_throws DimensionMismatch HHN.randpermgroups!([1], Vector{Int}[])
+    #@test_throws DimensionMismatch HHN.randpermgroups!([1], HHN.IndicesPartition(0))
     @test_throws DimensionMismatch HHN.randpermgroups!([1], [[1], [2]])
     @test_throws DimensionMismatch HHN.randpermgroups!([1], HHN.IndicesPartition(2))
     @test_throws DimensionMismatch HHN.randpermgroups!(Int[], [[1]])
     @test_throws DimensionMismatch HHN.randpermgroups!(Int[], HHN.IndicesPartition(1))
     @test_throws DimensionMismatch HHN.randpermgroups!(Int[], HHN.IndicesPartition(2))
+
     @test HHN.randpermgroups([[1], [2], [3], [4], [5]]) == 1:5
     @test HHN.randpermgroups(HHN.IndicesPartition(5)) == 1:5
 
     for i in 1:10
         @test HHN.randpermgroups([[1, 3], [2, 4]]) ∈ [[1, 2, 3, 4], [3, 2, 1, 4],
                                                       [3, 4, 1, 2], [1, 4, 3, 2]]
+    end
+
+    # permutations of a subset
+    @test HHN.randpermgroups!([1, 2, 3, 4, 5], Vector{Int}[]) == 1:5
+    @test HHN.randpermgroups!([1, 2, 3, 4, 5], [[1], [4]]) == 1:5
+    for i in 1:10
+        @test HHN.randpermgroups!([1, 2, 3, 4, 5], [[1, 3], [2, 5]]) ∈
+            [[1, 2, 3, 4, 5], [3, 2, 1, 4, 5],
+             [3, 5, 1, 4, 2], [1, 5, 3, 4, 2]]
     end
 end

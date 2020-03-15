@@ -72,8 +72,8 @@ end
 Generates a random permutation of elements within each specified group.
 """
 function randpermgroups!(v::AbstractVector{Int}, groups::AbstractPartition)
-    length(v) == nelems(groups) ||
-        throw(DimensionMismatch("Length of output vector ($(length(v))) does not match the number of grouped indices ($(nelems(groups)))"))
+    (length(v) >= nelems(groups)) ||
+        throw(DimensionMismatch("Length of output vector ($(length(v))) is smaller than the number of grouped indices ($(nelems(groups)))"))
     group_perm = Vector{Int}() # temporary array of permuted indices within the group
     for group in groups
         randperm!(resize!(group_perm, length(group)))
