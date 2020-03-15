@@ -3,7 +3,7 @@ Construct the walk matrix for the random walk.
 """
 function walk_matrix(g::AbstractSimpleWeightedGraph;
                      normalize_weights::Bool=true)
-    adj_mtx = copy(weights(g))
+    adj_mtx = copy(LightGraphs.weights(g))
     if normalize_weights
         node_degs = sum(adj_mtx, dims=1)
         node_degs[node_degs .== 0] .= 1

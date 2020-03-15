@@ -17,7 +17,7 @@ end
 function vertexbins_sort(g::AbstractSimpleWeightedGraph;
                          by::Symbol=:out, nbins::Integer=10)
     if (by == :in) || (by == :out)
-        wvtxs = vec(sum(weights(g), dims=by == :out ? 1 : 2))
+        wvtxs = vec(sum(LightGraphs.weights(g), dims=by == :out ? 1 : 2))
         vorder = sortperm(wvtxs, rev=true)
     elseif by == :outXin
         nbins_inner = 2^ceil(Int, log2(sqrt(nbins)))
@@ -56,10 +56,10 @@ function vertexbins_tree(g::AbstractSimpleWeightedGraph;
                          weightf=sqrt, distf=sqrt)
     # vertex distances based on the in- and/or outcoming weights
     if (by == :in) || (by == :out)
-        wvtxs = reshape(sum(weightf, weights(g), dims=by == :out ? 1 : 2), (1, nv(g)))
+        wvtxs = reshape(sum(weightf, LightGraphs.weights(g), dims=by == :out ? 1 : 2), (1, nv(g)))
     elseif by == :outXin
-        wvtxs = vcat(reshape(sum(weightf, weights(g), dims=1), (1, nv(g))),
-                     reshape(sum(weightf, weights(g), dims=2), (1, nv(g))))
+        wvtxs = vcat(reshape(sum(weightf, LightGraphs.weights(g), dims=1), (1, nv(g))),
+                     reshape(sum(weightf, LightGraphs.weights(g), dims=2), (1, nv(g))))
     else
         throw(ArgumentError("Unsupported by=$by"))
     end
