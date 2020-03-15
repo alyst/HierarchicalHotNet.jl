@@ -17,6 +17,11 @@
     @test sort!.(HHN.strongly_connected_components(HHN.tarjan1983_example_graph().weights, pool, threshold=10)) == [[1, 2, 3, 4, 5, 7], [6]]
     @test pool.nborrowed == 0
 
+    # test in-place version
+    ptn = HHN.IndicesPartition(3)
+    @test HHN.strongly_connected_components!(ptn, HHN.tarjan1983_example_graph().weights, pool, threshold=10) === ptn
+    @test sort!.(ptn) == [[1, 2, 3, 4, 5, 7], [6]]
+
     @testset "strongly_connected_components(TunnelMatrix)" begin
         mtx = weights(HHN.tarjan1983_example_graph())
         tmtx = HHN.TunnelsMatrix(mtx, [2,1,3], [1,4,6,7])
