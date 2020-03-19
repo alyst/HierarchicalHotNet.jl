@@ -5,6 +5,7 @@ using Random, LinearAlgebra, LightGraphs, SimpleWeightedGraphs, Clustering, Dist
 include("array_pool.jl")
 include("partition.jl")
 include("utils.jl")
+include("matrix_utils.jl")
 include("network_diffusion.jl")
 include("network_permutation.jl")
 include("generate_example_graph.jl")
