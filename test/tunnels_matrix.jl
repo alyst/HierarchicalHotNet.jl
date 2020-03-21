@@ -109,6 +109,27 @@ end
     end
 end
 
+@testset "indexvalues()" begin
+        mtx = [1 2.
+               3 4
+               5 6]
+        tmtx = HHN.TunnelsMatrix(view(mtx, 2:3, 1:2), [2,1], [1,2])
+        imtx, weights = HHN.indexvalues(Int, tmtx)
+        @test imtx isa HHN.TunnelsMatrix{Int}
+        @test imtx.entries == tmtx.entries
+        @test imtx.tunnels == tmtx.tunnels
+        @test imtx.tunnel_weight == 4
+        @test imtx.parent == [1 2; 3 4]
+
+        mtx[1, 2] = 4
+        tmtx2 = HHN.TunnelsMatrix(view(mtx, 1:2, 1:2), [2,2], [1,2])
+        HHN.indexvalues!(imtx, weights, tmtx2)
+        @test imtx.entries == tmtx2.entries
+        @test imtx.tunnels == tmtx2.tunnels
+        @test imtx.tunnel_weight == 3
+        @test imtx.parent == [1 3; 2 3]
+end
+
 @testset "condense()" begin
     @testset "simple matrix" begin
         mtx = [1 2.

@@ -12,7 +12,7 @@ it transforms into a directed cycle going throw the corresponding *tunnel edge*
 between the mirror nodes. This directed cycle, therefore, is a part of some
 strongly connected component.
 """
-struct TunnelsMatrix{W, M <: AbstractMatrix} <: AbstractMatrix{W}
+mutable struct TunnelsMatrix{W, M <: AbstractMatrix} <: AbstractMatrix{W}
     parent::M               # original adjacency matrix
     nparent::Int            # number of nodes (1:nparent) from the original graph exposed
     entries::Vector{Int}    # indices of parent "entry" rows
@@ -180,11 +180,22 @@ function Base.iterate(it::TunnelsMatrixOutedgesIterator, i::Integer = 0)
     return nothing
 end
 
-function indexvalues(::Type{I}, A::TunnelsMatrix; kwargs...) where I <: Integer
-    iparent, weights = indexvalues(I, A.parent; kwargs...)
+function indexvalues!(iA::TunnelsMatrix, weights::AbstractVector,
+                      A::TunnelsMatrix; kwargs...)
+    iparent, weights = indexvalues!(iA.parent, weights, A.parent; kwargs...)
     @assert last(weights) == A.tunnel_weight
-    return TunnelsMatrix(iparent, A.entries, A.tunnels, A.nparent, tunnel_weight=length(weights)), weights
+    iA.parent = iparent
+    iA.nparent = A.nparent
+    iA.tunnel_weight = length(weights)
+    copy!(iA.entries, A.entries)
+    copy!(iA.tunnels, A.tunnels)
+    return iA, weights
 end
+
+indexvalues(::Type{I}, A::TunnelsMatrix{T}; kwargs...) where {T, I <: Integer} =
+    indexvalues!(TunnelsMatrix(Matrix{I}(undef, (0, 0)), Vector{Int}(),
+                               IndicesPartition()),
+                 Vector{T}(), A; kwargs...)
 
 function subgraph_adjacencymatrix(adjmtx::TunnelsMatrix,
                                   comp_indices::AbstractVector{<:Integer})
