@@ -19,13 +19,14 @@ end
 sortedvalues(A::AbstractArray{T}; kwargs...) where T =
     sortedvalues!(Vector{T}(), A; kwargs...)
 
-function indexvalues(::Type{I}, A::AbstractArray{T};
-                     skipval::Union{Number, Nothing} = zero(eltype(A)),
-                     kwargs...) where {T, I <: Integer}
-    weights = sortedvalues(A; skipval=skipval, kwargs...)
+function indexvalues!(iA::AbstractMatrix{I}, weights::AbstractVector{T},
+                      A::AbstractArray{T};
+                      skipval::Union{Number, Nothing} = zero(eltype(A)),
+                      kwargs...) where {T, I <: Integer}
+    sortedvalues!(weights, A; skipval=skipval, kwargs...)
     weightdict = Dict{T, I}(val => i for (i, val) in enumerate(weights))
     # convert adjmtx to weight indices. higher index=stronger edge
-    iA = fill!(similar(A, I), 0)
+    iA = fill!(reshape(resize!(vec(iA), length(A)), size(A)), 0)
     @inbounds for (i, a) in enumerate(A)
         if isnothing(skipval) || a != skipval
             iA[i] = weightdict[a]#searchsortedfirst(weights, a, rev=rev)
@@ -33,6 +34,9 @@ function indexvalues(::Type{I}, A::AbstractArray{T};
     end
     return iA, weights
 end
+
+indexvalues(::Type{I}, A::AbstractArray{T}; kwargs...) where {T, I <: Integer} =
+    indexvalues!(similar(A, I), Vector{T}(), A; kwargs...)
 
 subgraph_adjacencymatrix(adjmtx::AbstractMatrix, comp_indices::AbstractVector{<:Integer}) =
     view(adjmtx, comp_indices, comp_indices)
