@@ -13,10 +13,10 @@ end
 # simplifying the logic of direct/reversed weights ordering and
 # collecting unique weights for each subtree adjacency matrix much more
 # efficiently.
-mutable struct SCCSeedling{T, I}
+mutable struct SCCSeedling{T, I, M}
     rev::Bool
 
-    iadjmtx::Matrix{I}  # original adjmtx with weights replaced by their indices in `weights` vector
+    iadjmtx::M          # original adjmtx with weights replaced by their indices in `weights` vector
     weights::Vector{T}  # unique weights of `adjmtx` sorted from weakest to strongest
     nodes::Vector{SCCSeedlingNode{I}} # nodes of the growing tree
     vertexnodes::Vector{Int} # maps graph verticex to the index of the node it is directly attached to
@@ -36,12 +36,13 @@ mutable struct SCCSeedling{T, I}
         I = Int64 # FIXME better/dynamic?
         iadjmtx, weights = indexvalues(I, adjmtx, skipval=skipval, rev=rev)
         nv = size(adjmtx, 1)
-        new{T,I}(rev, iadjmtx, weights, Vector{SCCSeedlingNode{I}}(),
-                 fill(0, nv),
-                 ArrayPool{I}(max(10, nv*10)),
-                 1, fill(0, length(weights)),
-                 ArrayPool{Int}(max(10, nv*10)),
-                 0, Vector{IndicesPartition}())
+        new{T,I,typeof(iadjmtx)}(
+            rev, iadjmtx, weights, Vector{SCCSeedlingNode{I}}(),
+            fill(0, nv),
+            ArrayPool{I}(max(10, nv*10)),
+            1, fill(0, length(weights)),
+            ArrayPool{Int}(max(10, nv*10)),
+            0, Vector{IndicesPartition}())
     end
 end
 
