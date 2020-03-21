@@ -55,7 +55,7 @@ ntunnels(mtx::TunnelsMatrix) = nelems(mtx.tunnels)
 Base.@propagate_inbounds function Base.getindex(mtx::TunnelsMatrix,
                                                 i::Integer, j::Integer)
     lastentry = mtx.nparent + nentries(mtx)
-    if j <= mtx.nparent # outgoing edges of the original node
+    @inbounds if j <= mtx.nparent # outgoing edges of the original node
         if i <= mtx.nparent # parent matrix
             return mtx.parent[i, j]
         elseif i <= lastentry # j -> entry(i)=ie
@@ -159,7 +159,7 @@ function Base.iterate(it::TunnelsMatrixOutedgesIterator, i::Integer = 0)
     l = it.mtx.nparent
     while i < lastentry
         i += 1
-        ie = it.mtx.entries[i - l]
+        @inbounds ie = it.mtx.entries[i - l]
         (ie == it.colv) && continue # no outgoing edge to own mirror
         w = @inbounds(it.col[ie])
         isvalidedge(w, it.test) && return (i => w, i)
@@ -198,7 +198,7 @@ function subgraph_adjacencymatrix(adjmtx::TunnelsMatrix,
     old2new_iem = fill(0, nentries(adjmtx))
     old2new_ix = fill(0, maximum(adjmtx.tunnels.elems))
     last_new_iem = 0
-    for i in comp_indices
+    @inbounds for i in comp_indices
         if i <= adjmtx.nparent
             @assert nnewparents == 0
             push!(parent_cols, i)
