@@ -16,6 +16,21 @@ function sortedvalues(A::AbstractArray{T};
     return res
 end
 
+function indexvalues(::Type{I}, A::AbstractArray{T};
+                     skipval::Union{Number, Nothing} = zero(eltype(A)),
+                     kwargs...) where {T, I <: Integer}
+    weights = sortedvalues(A; skipval=skipval, kwargs...)
+    weightdict = Dict{T, I}(val => i for (i, val) in enumerate(weights))
+    # convert adjmtx to weight indices. higher index=stronger edge
+    iA = fill!(similar(A, I), 0)
+    @inbounds for (i, a) in enumerate(A)
+        if isnothing(skipval) || a != skipval
+            iA[i] = weightdict[a]#searchsortedfirst(weights, a, rev=rev)
+        end
+    end
+    return iA, weights
+end
+
 """
 "Condenses" the matrix `A` by aggregating the values in the blocks of its
 elements defined by `row_groups` and `col_groups`.

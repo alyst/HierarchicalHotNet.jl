@@ -34,15 +34,7 @@ mutable struct SCCSeedling{T, I}
                          skipval::Union{Number, Nothing}=zero(eltype(adjmtx)),
                          rev::Bool=false) where T
         I = Int64 # FIXME better/dynamic?
-        weights = sortedvalues(adjmtx, skipval=skipval, rev=rev)
-        weightdict = Dict(val => i for (i, val) in enumerate(weights))
-        # convert adjmtx to weight indices. higher index=stronger edge
-        iadjmtx = fill!(Matrix{I}(undef, size(adjmtx)), 0)
-        @inbounds for (i, a) in enumerate(adjmtx)
-            if isnothing(skipval) || a != skipval
-                iadjmtx[i] = weightdict[a]#searchsortedfirst(weights, a, rev=rev)
-            end
-        end
+        iadjmtx, weights = indexvalues(I, adjmtx, skipval=skipval, rev=rev)
         nv = size(adjmtx, 1)
         new{T,I}(rev, iadjmtx, weights, Vector{SCCSeedlingNode{I}}(),
                  fill(0, nv),
