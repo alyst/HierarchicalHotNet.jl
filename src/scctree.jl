@@ -126,11 +126,12 @@ strongly connected components of the original graph.
 would be ignored.
 """
 cut(tree::SCCTree, threshold::Number; kwargs...) =
-    cut!(IndicesPartition(0), tree, threshold; kwargs...)
+    cut!(IndicesPartition(Vector{Int}(undef, nvertices(tree)), Vector{Int}()),
+         tree, threshold; kwargs...)
 
 function cut!(comps::IndicesPartition, tree::SCCTree, threshold::Number;
               minsize::Integer=1)
-    reset!(comps, 0)
+    empty!(comps)
     if !isempty(tree.nodes)
         cut_subtree!(comps, tree, threshold, minsize, 1,
                      first(tree.nodes).threshold)
