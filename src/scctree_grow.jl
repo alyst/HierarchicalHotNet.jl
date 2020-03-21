@@ -307,7 +307,7 @@ function scctree_bisect_subtree!(tree::SCCSeedling, adjmtx::AbstractMatrix{<:Int
         # build the subtree for the current component
         if length(comp_indices) > 1 # recursively cluster i-th component
             verbose && @info("scctree_scc!(component #$i)")
-            comp_adjmtx = view(adjmtx, comp_indices, comp_indices)
+            comp_adjmtx = subgraph_adjacencymatrix(adjmtx, comp_indices)
             # recode indices in the current subtree into node/vertex refs
             sizehint!(empty!(comp_subtree), length(comp_indices))
             @inbounds for i in comp_indices

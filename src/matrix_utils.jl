@@ -31,6 +31,9 @@ function indexvalues(::Type{I}, A::AbstractArray{T};
     return iA, weights
 end
 
+subgraph_adjacencymatrix(adjmtx::AbstractMatrix, comp_indices::AbstractVector{<:Integer}) =
+    view(adjmtx, comp_indices, comp_indices)
+
 """
 "Condenses" the matrix `A` by aggregating the values in the blocks of its
 elements defined by `row_groups` and `col_groups`.
