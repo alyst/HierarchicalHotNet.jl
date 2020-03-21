@@ -89,23 +89,20 @@ Base.@propagate_inbounds function Base.getindex(mtx::TunnelsMatrix,
     end
 end
 
-struct TunnelsMatrixOutedgesIterator{W <: Number, V <: AbstractVector, M <: AbstractMatrix, T} <:
+struct TunnelsMatrixOutedgesIterator{W <: Number, V <: AbstractVector, M <: AbstractMatrix, E <: EdgeTest} <:
             AbstractOutedgesIterator{W}
     col::V
-    threshold::T
-    rev::Bool
+    test::E
 
     mtx::TunnelsMatrix{W, M}
     colv::Int
     exitv::Int
     entryv::Int
 
-    function TunnelsMatrixOutedgesIterator(mtx::TunnelsMatrix, v::Integer;
-        threshold::Union{Number, Nothing}=nothing,
-        rev::Bool=false
-    )
+    function TunnelsMatrixOutedgesIterator(mtx::TunnelsMatrix, v::Integer, test::EdgeTest)
         W = eltype(mtx)
-        T = isnothing(threshold) ? Nothing : W
+        skipval(test) == zero(W) ||
+            throw(ArgumentError("TunnelMatrix only supports skipping zeroes"))
 
         checkindex(Bool, axes(mtx, 2), v) ||
             throw(BoundsError("attempt to access column $v of $(size(mtx.parent, 2))-column TunnelsMatrix"))
@@ -124,20 +121,14 @@ struct TunnelsMatrixOutedgesIterator{W <: Number, V <: AbstractVector, M <: Abst
             entryv = 0
         end
         col = view(mtx.parent, :, colv)
-        new{W, typeof(col), typeof(mtx.parent), T}(
-            col, threshold, rev,
-            mtx, colv, exitv, entryv)
+        new{W, typeof(col), typeof(mtx.parent), typeof(test)}(
+            col, test, mtx, colv, exitv, entryv)
     end
 end
 
-function outedges(mtx::TunnelsMatrix, v::Integer;
-                  skipval::Union{Number, Nothing} = zero(eltype(mtx)), kwargs...)
-    skipval != zero(eltype(mtx)) && throw(ArgumentError("TunnelsMatrix outedges iterator only supports zero skipvals"))
-    return TunnelsMatrixOutedgesIterator(mtx, v; kwargs...)
-end
-
-skipval(it::TunnelsMatrixOutedgesIterator{W}) where W = zero(W)
-isweightreverse(it::TunnelsMatrixOutedgesIterator) = it.rev
+outedges(mtx::TunnelsMatrix{T}, v::Integer,
+         test::EdgeTest{T} = EdgeTest{T}()) where T=
+    TunnelsMatrixOutedgesIterator(mtx, v, test)
 
 function Base.iterate(it::TunnelsMatrixOutedgesIterator, i::Integer = 0)
     lastentry = it.mtx.nparent + nentries(it.mtx)
@@ -160,7 +151,7 @@ function Base.iterate(it::TunnelsMatrixOutedgesIterator, i::Integer = 0)
         i += 1
         (i == it.exitv) && continue
         w = @inbounds(it.col[i])
-        isvalidedge(w, it) && return (i => w, i)
+        isvalidedge(w, it.test) && return (i => w, i)
     end
     (it.exitv > 0) && return nothing # it's exit vertex, so no further edges
 
@@ -171,14 +162,15 @@ function Base.iterate(it::TunnelsMatrixOutedgesIterator, i::Integer = 0)
         ie = it.mtx.entries[i - l]
         (ie == it.colv) && continue # no outgoing edge to own mirror
         w = @inbounds(it.col[ie])
-        isvalidedge(w, it) && return (i => w, i)
+        isvalidedge(w, it.test) && return (i => w, i)
     end
     return nothing
 end
 
 function indexvalues!(iA::TunnelsMatrix, weights::AbstractVector,
-                      A::TunnelsMatrix; kwargs...)
-    iparent, weights = indexvalues!(iA.parent, weights, A.parent; kwargs...)
+                      A::TunnelsMatrix{T},
+                      test::EdgeTest{T} = EdgeTest{T}(); kwargs...) where T
+    iparent, weights = indexvalues!(iA.parent, weights, A.parent, test; kwargs...)
     @assert last(weights) == A.tunnel_weight
     iA.parent = iparent
     iA.nparent = A.nparent
@@ -188,10 +180,12 @@ function indexvalues!(iA::TunnelsMatrix, weights::AbstractVector,
     return iA, weights
 end
 
-indexvalues(::Type{I}, A::TunnelsMatrix{T}; kwargs...) where {T, I <: Integer} =
+indexvalues(::Type{I}, A::TunnelsMatrix{T},
+            test::EdgeTest{T} = EdgeTest{T}();
+            kwargs...) where {T, I <: Integer} =
     indexvalues!(TunnelsMatrix(Matrix{I}(undef, (0, 0)), Vector{Int}(),
                                IndicesPartition()),
-                 Vector{T}(), A; kwargs...)
+                 Vector{T}(), A, test; kwargs...)
 
 function subgraph_adjacencymatrix(adjmtx::TunnelsMatrix,
                                   comp_indices::AbstractVector{<:Integer})
@@ -269,16 +263,15 @@ function subgraph_adjacencymatrix(adjmtx::TunnelsMatrix,
 end
 
 function condense!(B::AbstractMatrix,
-                   A::TunnelsMatrix,
-                   node_groups::AbstractPartition;
-                   skipval::Union{Number, Nothing} = zero(eltype(A)),
-                   rev::Bool=false)
+                   A::TunnelsMatrix{T},
+                   node_groups::AbstractPartition,
+                   test::EdgeTest{T} = EdgeTest{T}()) where T
     nnodes = nelems(node_groups)
     size(A) == (nnodes, nnodes) ||
         throw(DimensionMismatch("A size ($(size(A))) and row/col labels sizes ($nnodes, $nnodes) do not match."))
     size(B) == (length(node_groups), length(node_groups)) ||
         throw(DimensionMismatch("B size ($(size(B))) and row/col group number ($(length(node_groups)), $(length(node_groups))) do not match."))
-    fill!(B, defaultweight(eltype(A), skipval=skipval, rev=rev))
+    fill!(B, defaultweight(test))
 
     lastentry = A.nparent + nentries(A)
     @inbounds for (jj, cols) in enumerate(node_groups)
@@ -327,8 +320,9 @@ function condense!(B::AbstractMatrix,
                         else
                             break # no further non-zero entries
                         end
-                        !isnothing(skipval) && (w == skipval) && continue
-                        if (!isnothing(skipval) && (Bij == skipval)) || isweaker(Bij, w, rev=rev)
+                        !isnothing(skipval(test)) && (w == skipval(test)) && continue
+                        if (!isnothing(skipval(test)) && (Bij == skipval(test))) ||
+                            isweaker(Bij, w, rev=isreverse(test))
                             Bij = w
                         end
                     end

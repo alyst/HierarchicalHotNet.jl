@@ -88,6 +88,8 @@ end
 
         tmtx = HHN.TunnelsMatrix(view(mtx, 2:3, 1:2), [2,1], [1,2])
         @inferred HHN.outedges(tmtx, 1)
+        tit = HHN.outedges(tmtx, 1)
+        @test tit isa HHN.TunnelsMatrixOutedgesIterator
         @test_throws BoundsError HHN.outedges(tmtx, 0)
         @test_throws BoundsError HHN.outedges(tmtx, 9)
 

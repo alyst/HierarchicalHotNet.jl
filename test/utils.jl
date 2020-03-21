@@ -43,17 +43,17 @@ end
     vals = HHN.sortedvalues(adjmtx)
     @test issorted(vals)
 
-    vals20 = HHN.sortedvalues(adjmtx, threshold=20)
+    vals20 = HHN.sortedvalues(adjmtx, HHN.EdgeTest{Float64}(threshold=20))
     @test issorted(vals20)
     @test all(x -> x <= 20, vals20)
 
-    valsm1 = HHN.sortedvalues(adjmtx, threshold=-1)
+    valsm1 = HHN.sortedvalues(adjmtx, HHN.EdgeTest{Float64}(threshold=-1))
     @test isempty(valsm1)
 
-    rvals = HHN.sortedvalues(adjmtx, rev=true)
+    rvals = HHN.sortedvalues(adjmtx, HHN.EdgeTest{Float64}(rev=true))
     @test issorted(rvals, rev=true)
 
-    rvals20 = HHN.sortedvalues(adjmtx, rev=true, threshold=20)
+    rvals20 = HHN.sortedvalues(adjmtx, HHN.EdgeTest{Float64}(rev=true, threshold=20))
     @test issorted(rvals20, rev=true)
     @test all(x -> x >= 20, rvals20)
 end
@@ -67,13 +67,13 @@ end
          1. 0. 2.;
          2. 4. 0.]
     @test HHN.condense(A, [[1], [2, 3]]) == [0. 3; 2 4]
-    @test HHN.condense(A, [[1], [2, 3]], skipval=3) == [0. 2; 2 4]
-    @test HHN.condense(A, [[1], [3, 2]], rev=true) == [0. 2; 1 2]
-    @test HHN.condense(A, [[1], [2, 3]], skipval=3, rev=true) == [0. 2; 1 0]
-    @test HHN.condense(A, [[1], [2, 3]], [[1, 2, 3]], skipval=0, rev=true) == reshape([2., 1], (2, 1))
+    @test HHN.condense(A, [[1], [2, 3]], HHN.EdgeTest{Float64}(skipval=3)) == [0. 2; 2 4]
+    @test HHN.condense(A, [[1], [3, 2]], HHN.EdgeTest{Float64}(rev=true)) == [0. 2; 1 2]
+    @test HHN.condense(A, [[1], [2, 3]], HHN.EdgeTest{Float64}(skipval=3, rev=true)) == [0. 2; 1 0]
+    @test HHN.condense(A, [[1], [2, 3]], [[1, 2, 3]], HHN.EdgeTest{Float64}(skipval=0, rev=true)) == reshape([2., 1], (2, 1))
     @test HHN.condense(A, [[1], [3, 2]], [[3, 1, 2]]) == reshape([3., 4], (2, 1))
     @test HHN.condense(A, [[1], [2, 3]], [[2, 1], [3]]) == [2. 3; 4 2]
-    @test HHN.condense(A, [[1], [2, 3]], [[1, 2], [3]], skipval=-1, rev=true) == [0. 3; 0 0]
+    @test HHN.condense(A, [[1], [2, 3]], [[1, 2], [3]], HHN.EdgeTest{Float64}(skipval=-1, rev=true)) == [0. 3; 0 0]
 end
 
 @testset "insertsorted()" begin

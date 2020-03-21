@@ -1,16 +1,14 @@
-strongly_connected_components(adjmtx::AbstractMatrix,
-                              pool::Union{ArrayPool{Int}, Nothing} = nothing;
-                              kwargs...) =
+strongly_connected_components(adjmtx::AbstractMatrix{T},
+                              test::EdgeTest{T} = EdgeTest{T}(),
+                              pool::Union{ArrayPool{Int}, Nothing} = nothing) where T =
     strongly_connected_components!(IndicesPartition(Vector{Int}(undef, size(adjmtx, 1)), Vector{Int}()),
-                                   adjmtx, pool; kwargs...)
+                                   adjmtx, test, pool)
 
 # Adapted/adopted from LightGraphs.jl
 function strongly_connected_components!(components::IndicesPartition,
                                         adjmtx::AbstractMatrix{T},
-                                        pool::Union{ArrayPool{Int}, Nothing} = nothing;
-                                        skipval::Union{Number, Nothing}=zero(eltype(adjmtx)),
-                                        threshold::Union{Number, Nothing}=nothing,
-                                        rev::Bool=false) where T
+                                        test::EdgeTest{T},
+                                        pool::Union{ArrayPool{Int}, Nothing}) where T
     nnodes = size(adjmtx, 1)
     nnodes == size(adjmtx, 2) ||
         throw(DimensionMismatch("adjmtx has to be square, $(size(adjmtx)) found"))
@@ -38,7 +36,7 @@ function strongly_connected_components!(components::IndicesPartition,
         while !isempty(dfs_stack)
             v = dfs_stack[end] #end is the most recently added item
             u = 0 # index of the first unvisited neighbour
-            @inbounds for (vout, w) in outedges(adjmtx, v, skipval=skipval, threshold=threshold, rev=rev)
+            @inbounds for (vout, w) in outedges(adjmtx, v, test)
                 vout_index = index[vout]
                 if vout_index == 0
                     # unvisited neighbor found

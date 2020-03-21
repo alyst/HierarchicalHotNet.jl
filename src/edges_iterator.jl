@@ -10,38 +10,27 @@ isweightreverse(it::AbstractOutedgesIterator) = isweightreverse(typeof(it))
 isvalidedge(w::Number, it::AbstractOutedgesIterator) =
     isvalidedge(w, skipval=skipval(it), threshold=it.threshold, rev=isweightreverse(it))
 
-struct MatrixOutedgesIterator{W <: Number, V <: AbstractVector, S, T, R} <: AbstractOutedgesIterator{W}
+struct MatrixOutedgesIterator{W <: Number, V <: AbstractVector, E <: EdgeTest} <: AbstractOutedgesIterator{W}
     col::V
-    skipval::S
-    threshold::T
+    test::E
 
-    @inline function MatrixOutedgesIterator(mtx::AbstractMatrix, v::Integer;
-        skipval::Union{Number, Nothing}=zero(eltype(mtx)),
-        threshold::Union{Number, Nothing}=nothing,
-        rev::Bool=false
-    )
-        W = eltype(mtx)
-        S = isnothing(skipval) ? Nothing : W
-        T = isnothing(threshold) ? Nothing : W
+    @inline function MatrixOutedgesIterator(mtx::AbstractMatrix{W},
+                                            v::Integer, test::EdgeTest{W}) where W
         col = view(mtx, :, v)
-        new{W, typeof(col), S, T, rev}(col, skipval, threshold)
+        new{W, typeof(col), typeof(test)}(col, test)
     end
 end
 
-outedges(mtx::AbstractMatrix, v::Integer; kwargs...) =
-    MatrixOutedgesIterator(mtx, v; kwargs...)
-
-skipval(it::MatrixOutedgesIterator) = it.skipval
-isweightreverse(::Type{<:MatrixOutedgesIterator{<:Any, <:Any, <:Any, <:Any, R}}) where R = R
-isweightreverse(it::MatrixOutedgesIterator) = isweightreverse(typeof(it))
-isvalidedge(w::Number, it::MatrixOutedgesIterator) =
-    isvalidedge(w, skipval=it.skipval, threshold=it.threshold, rev=isweightreverse(it))
+@inline outedges(mtx::AbstractMatrix{W}, v::Integer,
+                 test::EdgeTest = EdgeTest{W}()) where W =
+    MatrixOutedgesIterator(mtx, v, test)
 
 @inline function Base.iterate(it::MatrixOutedgesIterator, i::Integer = 0)
-    while i < length(it.col)
+    l = length(it.col)
+    while i < l
         i += 1
         w = @inbounds(it.col[i])
-        isvalidedge(w, it) && return (i => w, i)
+        isvalidedge(w, it.test) && return (i => w, i)
     end
     return nothing
 end

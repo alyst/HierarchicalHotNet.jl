@@ -34,7 +34,8 @@ mutable struct SCCSeedling{T, I, M}
                          skipval::Union{Number, Nothing}=zero(eltype(adjmtx)),
                          rev::Bool=false) where T
         I = Int64 # FIXME better/dynamic?
-        iadjmtx, weights = indexvalues(I, adjmtx, skipval=skipval, rev=rev)
+        test = EdgeTest{T}(skipval=skipval, rev=rev, threshold=nothing)
+        iadjmtx, weights = indexvalues(I, adjmtx, test)
         nv = size(adjmtx, 1)
         new{T,I,typeof(iadjmtx)}(
             rev, iadjmtx, weights, Vector{SCCSeedlingNode{I}}(),
@@ -183,8 +184,10 @@ function scctree_bottomup!(tree::SCCSeedling; verbose::Bool=false)
     vertex_roots = collect(-1:-1:-nvertices(tree)) # start with each vertex being a root of a subtree
     comps = IndicesPartition(nvertices(tree), ngroups=nvertices(tree)) # reusable partition of vertices into components
     ncomps = length(comps)
+    I = indextype(tree)
     for threshold in length(tree.weights):-1:1
-        strongly_connected_components!(comps, tree.iadjmtx, tree.indices_pool, threshold=threshold)
+        threshold_cut = EdgeTest{I}(skipval=0, threshold=threshold, rev=false)
+        strongly_connected_components!(comps, tree.iadjmtx, threshold_cut, tree.indices_pool)
         (length(comps) == ncomps) && continue # same components as for the stronger threshold
         ncomps = length(comps) # new partition
         verbose && @info("$(ncomps) components detected at threshold=$threshold")
@@ -254,6 +257,7 @@ function scctree_bisect_subtree!(tree::SCCSeedling, adjmtx::AbstractMatrix{<:Int
     @assert 1 <= nodes_lev <= length(weights) "nodes_threshold=$nodes_threshold outside of ($(first(weights))..$(last(weights)))"
     verbose && @info("subtree_threshold=weights[$subtree_lev]=$(weights[subtree_lev]), nodes_threshold=weights[$nodes_lev]=$(weights[nodes_lev]) of $weights")
 
+    I = indextype(tree)
     nnodes = length(subtree)
     # initialize with trivial components
     comps = partition(tree, nnodes, ngroups=nnodes)
@@ -263,8 +267,8 @@ function scctree_bisect_subtree!(tree::SCCSeedling, adjmtx::AbstractMatrix{<:Int
         if nodes_lev <= subtree_lev + 1 # all bisections checked
             if subtree_threshold == 0 # it's the root subtree (all others should have subtree threshold)
                 # check if graph has multiple connected components
-                strongly_connected_components!(comps, adjmtx, tree.indices_pool,
-                                               threshold=weights[subtree_lev])
+                subtree_cut = EdgeTest{I}(skipval=0, threshold=weights[subtree_lev], rev=false)
+                strongly_connected_components!(comps, adjmtx, subtree_cut, tree.indices_pool)
                 if length(comps) == 1
                     # it's a connected graph, so assign the threshold to the root
                     subtree_threshold = weights[subtree_lev]
@@ -287,7 +291,8 @@ function scctree_bisect_subtree!(tree::SCCSeedling, adjmtx::AbstractMatrix{<:Int
         bisect_lev = fld1(subtree_lev + nodes_lev, 2)
         @assert subtree_lev < bisect_lev < nodes_lev
         bisect_threshold = weights[bisect_lev]
-        strongly_connected_components!(comps, adjmtx, threshold=bisect_threshold)
+        bisect = EdgeTest{I}(skipval=0, threshold=bisect_threshold, rev=false)
+        strongly_connected_components!(comps, adjmtx, bisect, tree.indices_pool)
         verbose && @info("Identified $ncomps strongly connected component(s) at threshold[$bisect_lev]=$bisect_threshold: $index2comp")
         if length(comps) == 1 # single component
             verbose && @info("Single SCC")

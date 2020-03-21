@@ -1,21 +1,3 @@
-@inline isweaker(a::Number, b::Number; rev::Bool=false) =
-    (!rev && (a < b)) || (rev && (a > b))
-@inline isstronger(a::Number, b::Number; rev::Bool=false) =
-    (!rev && (a > b)) || (rev && (a < b))
-
-@inline isvalidedge(w::Number;
-            skipval::Union{Number, Nothing} = zero(w),
-            threshold::Union{Number, Nothing} = nothing,
-            rev::Bool = false) =
-    (isnothing(skipval) || (w != skipval)) &&
-    (isnothing(threshold) || !isweaker(w, threshold, rev=rev))
-
-@inline defaultweight(::Type{T};
-              skipval::Union{Number, Nothing} = zero(T),
-              rev::Bool = false) where T =
-    isnothing(skipval) ? (rev ? typemax(T) : typemin(T)) : skipval
-
-
 function valuegroupsizes(maxvalue::Int, values::AbstractVector{Int})
     sizes = fill(0, maxvalue)
     for (i, val) in enumerate(values)

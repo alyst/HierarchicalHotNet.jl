@@ -5,6 +5,7 @@ using Random, LinearAlgebra, LightGraphs, SimpleWeightedGraphs, Clustering, Dist
 include("array_pool.jl")
 include("partition.jl")
 include("utils.jl")
+include("edge_test.jl")
 include("matrix_utils.jl")
 include("edges_iterator.jl")
 include("tunnels_matrix.jl")
