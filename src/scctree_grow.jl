@@ -53,7 +53,7 @@ nvertices(tree::SCCSeedling) = length(tree.vertexnodes)
 # of unique values present in `arr`.
 function sortediweights(tree::SCCSeedling{T, I}, arr::AbstractArray{I},
                         superset::AbstractVector) where {T, I}
-    weights = empty!(borrow!(tree.iweights_pool, length(superset)))
+    iweights = empty!(borrow!(tree.iweights_pool, length(superset)))
     # generate the unique stamp
     stamp = (tree.stamp += 1)
     # stamp all observed values
@@ -65,10 +65,10 @@ function sortediweights(tree::SCCSeedling{T, I}, arr::AbstractArray{I},
     # only look at the superset values and collect those that have the current stamp
     @inbounds for iw in superset
         if tree.weight_stamps[iw] == stamp
-            push!(weights, iw)
+            push!(iweights, iw)
         end
     end
-    return weights
+    return iweights
 end
 
 sortediweights(tree::SCCSeedling{T, I}, arr::TunnelsMatrix{I},
