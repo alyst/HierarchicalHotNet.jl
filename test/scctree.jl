@@ -23,6 +23,7 @@
         g0tree = HHN.scctree(g0, verbose=false, method=method)
         @test HHN.weighttype(g0tree) === eltype(LightGraphs.weights(g0))
         @test HHN.nvertices(g0tree) == 0
+        @test HHN.nthresholds(g0tree) == 0
         @test isempty(g0tree.thresholds)
         @test isempty(HHN.cut(g0tree, 0.0))
 
@@ -34,6 +35,7 @@
         gtree = HHN.scctree(adjmtx, verbose=false, method=method)
         @test HHN.nvertices(gtree) == 7
         @test HHN.weighttype(gtree) === eltype(adjmtx)
+        @test HHN.nthresholds(gtree) == 4
         @test gtree.thresholds == [8.0, 12, 13, 30]
         groot = gtree.nodes[1]
         @test groot.parent == 0

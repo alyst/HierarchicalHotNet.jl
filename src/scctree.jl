@@ -90,6 +90,7 @@ end
 weighttype(::Type{SCCTree{T}}) where T = T
 weighttype(tree::SCCTree) = weighttype(typeof(tree))
 
+nthresholds(tree::SCCTree) = length(tree.thresholds)
 nvertices(tree::SCCTree) = length(tree.vertexnodes)
 vertices(tree::SCCTree, parent::Integer) = appendvertices!(Vector{Int}(), tree, parent)
 
