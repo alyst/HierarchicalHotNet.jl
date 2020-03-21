@@ -43,11 +43,15 @@ elements defined by `row_groups` and `col_groups`.
   maximal value of the block (i.e. the edge with the highest weight). Otherwise,
   it's the minimal value (the edge with the smallest weight).
 """
+condense(A::AbstractMatrix, node_groups::AbstractPartition; kwargs...) =
+    condense!(similar(A, length(node_groups), length(node_groups)), A,
+              node_groups; kwargs...)
+
 condense(A::AbstractMatrix,
-         row_groups::AbstractPartition,
-         col_groups::AbstractPartition = row_groups; kwargs...) =
-    condense!(similar(A, length(row_groups), length(col_groups)), A,
-              row_groups, col_groups; kwargs...)
+         row_groups::AbstractPartition, col_groups::AbstractPartition;
+         kwargs...) =
+  condense!(similar(A, length(row_groups), length(col_groups)), A,
+            row_groups, col_groups; kwargs...)
 
 """
 "Condenses" the matrix `A` by aggregating the values in the blocks of its
