@@ -16,8 +16,11 @@ struct Partition{T} <: AbstractVector{PartitionPart{T}}
 
     Partition{T}() where T = new{T}(Vector{T}(), [1])
     # FIXME check starts?
-    Partition{T}(elems::Vector{T}, starts::Vector{Int}) where T = new{T}(elems, starts)
-    Partition(elems::Vector{T}, starts::Vector{Int}) where T = Partition{T}(elems, starts)
+    Partition{T}(elems::Vector{T},
+                 starts::Vector{Int} = isempty(elems) ? [1] : [1, length(elems)+1]) where T =
+        new{T}(elems, starts)
+    Partition(elems::Vector{T},
+              starts::Vector{Int} = isempty(elems) ? [1] : [1, length(elems)+1]) where T = Partition{T}(elems, starts)
 end
 
 nparts(ptn::Partition) = length(ptn.starts) - 1

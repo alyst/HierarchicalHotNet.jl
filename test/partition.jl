@@ -80,6 +80,16 @@
         @test i == 3
     end
 
+    @testset "1-set partition by default for non-empty" begin
+        ptn = HHN.Partition(["A", "B", "C"])
+        @test length(ptn) == 1
+        @test ptn == [["A", "B", "C"]]
+
+        ptn = HHN.Partition{String}(String[])
+        @test length(ptn) == 0
+        @test ptn == Vector{String}[]
+    end
+
     @testset "initializing IndicesPartition" begin
         ptn = HHN.IndicesPartition(5)
         @test ptn == [[1], [2], [3], [4], [5]]
