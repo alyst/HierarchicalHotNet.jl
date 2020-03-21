@@ -9,5 +9,6 @@ include("partition.jl")
     include("utils.jl")
 end
 include("network_permutation.jl")
+include("edges_iterator.jl")
 include("connected_components.jl")
 include("scctree.jl")
