@@ -54,36 +54,35 @@ ntunnels(mtx::TunnelsMatrix) = nelems(mtx.tunnels)
 
 Base.@propagate_inbounds function Base.getindex(mtx::TunnelsMatrix,
                                                 i::Integer, j::Integer)
-    s1 = size(mtx.parent, 1)
-    s2 = size(mtx.parent, 2)
+    lastentry = mtx.nparent + nentries(mtx)
     if j <= mtx.nparent # outgoing edges of the original node
         if i <= mtx.nparent # parent matrix
-            return getindex(mtx.parent, i, j)
-        elseif i <= mtx.nparent + nentries(mtx) # j -> entry(i)=ie
+            return mtx.parent[i, j]
+        elseif i <= lastentry # j -> entry(i)=ie
             # entries preserve all incoming edges of their original nodes, except self-loops
             ie = mtx.entries[i - mtx.nparent]
-            return j != ie ? getindex(mtx.parent, ie, j) : zero(eltype(mtx))
+            return ifelse(j != ie, mtx.parent[ie, j], zero(eltype(mtx)))
         else # original nodes cannot enter tunnels
             return zero(eltype(mtx))
         end
-    elseif j <= mtx.nparent + nentries(mtx) # outgoing edges of tunnel entries
-        if i <= mtx.nparent + nentries(mtx)
+    elseif j <= lastentry # outgoing edges of tunnel entries
+        if i <= lastentry
             # tunnel entry can only lead into tunnel exit
             return zero(eltype(mtx))
         else
             jem = j - mtx.nparent
-            ixm = i - (mtx.nparent + nentries(mtx))
+            ixm = i - lastentry
             # there are tunnels for js-th entry to each exit,
             # they have indices ((js-1)*nf) + 1:nf
-            return in(ixm, partrange(mtx.tunnels, jem)) ?
-                mtx.tunnel_weight : zero(eltype(mtx))
+            return ifelse(in(ixm, partrange(mtx.tunnels, jem)),
+                          mtx.tunnel_weight, zero(eltype(mtx)))
         end
     else # outgoing edges of tunnel exits
         if i <= mtx.nparent
             # exits preserve the outgoing edges of their original nodes, except self-loops
-            jxm = j - (mtx.nparent + nentries(mtx))
+            jxm = j - lastentry
             @inbounds jx = mtx.tunnels.elems[jxm]
-            return i != jx ? getindex(mtx.parent, i, jx) : zero(eltype(mtx))
+            return ifelse(i != jx, mtx.parent[i, jx], zero(eltype(mtx)))
         else
             return zero(eltype(mtx))
         end
