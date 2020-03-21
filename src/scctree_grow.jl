@@ -13,7 +13,7 @@ end
 # simplifying the logic of direct/reversed weights ordering and
 # collecting unique weights for each subtree adjacency matrix much more
 # efficiently.
-mutable struct SCCSeedling{T, I, M}
+mutable struct SCCSeedling{T, I <: Integer, M <: AbstractMatrix}
     rev::Bool
 
     iadjmtx::M          # original adjmtx with weights replaced by their indices in `weights` vector
