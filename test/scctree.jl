@@ -1,4 +1,4 @@
-@testset "gtree()" begin
+@testset "scctree()" begin
     g0 = SimpleWeightedDiGraph(0)
     g1 = SimpleWeightedDiGraph(1)
 
@@ -19,7 +19,7 @@
 
     @test HHN.weighttype(HHN.SCCTree{Float16}) === Float16
 
-    @testset "gtree(method=:$method)" for method in [:bottomup, :bisect]
+    @testset "scctree(method=:$method)" for method in [:bottomup, :bisect]
         g0tree = HHN.scctree(g0, verbose=false, method=method)
         @test HHN.weighttype(g0tree) === eltype(weights(g0))
         @test HHN.nvertices(g0tree) == 0
