@@ -100,4 +100,29 @@
         @test HHN.IndicesPartition(3, ngroups=1) == [1:3]
         @test HHN.IndicesPartition(3, ngroups=3) == [[1], [2], [3]]
     end
+
+    @testset "repeat!()" begin
+        ptn = HHN.Partition(['A', 'B', 'C'])
+        @test_throws ArgumentError HHN.repeat!(ptn, -1)
+        @test ptn == [['A', 'B', 'C']]
+
+        @test HHN.repeat!(ptn, 1) === ptn
+        @test ptn == [['A', 'B', 'C']]
+        @test HHN.repeat!(ptn, 3) === ptn
+        @test ptn == [['A', 'B', 'C'], ['A', 'B', 'C'], ['A', 'B', 'C']]
+        @test HHN.repeat!(ptn, 0) === ptn
+        @test ptn == Vector{Char}[]
+
+        ptn = HHN.Partition(['A', 'B', 'C'], [1, 2, 4])
+        HHN.repeat!(ptn, 2)
+        @test ptn == [['A'], ['B', 'C'], ['A'], ['B', 'C']]
+
+        ptn = HHN.Partition(['A', 'B', 'C'], [1, 2, 4, 4])
+        HHN.repeat!(ptn, 2)
+        @test ptn == [['A'], ['B', 'C'], Char[], ['A'], ['B', 'C'], Char[]]
+
+        ptn = HHN.Partition(Char[], [1, 1, 1])
+        HHN.repeat!(ptn, 3)
+        @test ptn == [Char[], Char[], Char[], Char[], Char[], Char[]]
+    end
 end

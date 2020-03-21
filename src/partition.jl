@@ -65,6 +65,28 @@ function Base.copy!(a::Partition{T}, b::Partition{T}) where T
     return a
 end
 
+function repeat!(ptn::Partition, n::Integer)
+    (n == 1) && return ptn
+    (n == 0) && return empty!(ptn)
+    (n < 0) && throw(ArgumentError("n must be non-negative"))
+    if !isempty(ptn.elems)
+        l = length(ptn.elems)
+        resize!(ptn.elems, l*n)
+        @inbounds for i in 1:(n-1)
+            copyto!(ptn.elems, 1 + l*i, ptn.elems, 1, l)
+        end
+        np = length(ptn.starts)
+        laststart = last(ptn.starts)
+        @inbounds for _ in 1:(n-1), j in 2:np
+            laststart += ptn.starts[j] - ptn.starts[j-1]
+            push!(ptn.starts, laststart)
+        end
+    else
+        fill!(resize!(ptn.starts, (length(ptn.starts)-1)*n + 1), 1)
+    end
+    return ptn
+end
+
 # partition of an integer vector
 const IndicesPartition = Partition{Int}
 

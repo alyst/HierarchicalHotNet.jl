@@ -37,10 +37,7 @@ mutable struct TunnelsMatrix{W, M <: AbstractMatrix} <: AbstractMatrix{W}
                   entries::AbstractVector{Int}, exits::AbstractVector{Int};
                   kwargs...) =
         TunnelsMatrix(parent, entries,
-                      isempty(entries) ? IndicesPartition() :
-                      IndicesPartition(repeat(exits, outer=length(entries)),
-                                       isempty(exits) ? fill(1, length(entries)+1) :
-                                       collect(1:length(exits):length(entries)*length(exits)+1)),
+                      repeat!(IndicesPartition(exits), length(entries)),
                       min(size(parent, 1), size(parent, 2)); kwargs...)
 end
 
