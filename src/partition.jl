@@ -56,6 +56,12 @@ function Base.empty!(ptn::Partition)
     return ptn
 end
 
+function Base.copy!(a::Partition{T}, b::Partition{T}) where T
+    copy!(a.elems, b.elems)
+    copy!(a.starts, b.starts)
+    return a
+end
+
 # partition of an integer vector
 const IndicesPartition = Partition{Int}
 

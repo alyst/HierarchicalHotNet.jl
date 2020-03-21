@@ -64,6 +64,12 @@
         sort!(ptn[3])
         @test ptn[3] == ['D', 'E']
 
+        ptn_copy = HHN.Partition{Char}()
+        copy!(ptn_copy, ptn)
+        @test ptn_copy == ptn
+        @test ptn_copy.starts !== ptn.starts
+        @test ptn_copy.elems !== ptn.elems
+
         i = 0
         for pt in ptn
             i += 1
