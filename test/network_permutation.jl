@@ -9,6 +9,14 @@
         @test HHN.nelems(bins) == nv(g)
         @test length(bins) <= 10
     end
+
+    @testset "vertexbins(g, subset, by=:by, method=:method)" for by in [:in, :out, :outXin], method in [:sort, :tree]
+        bins = HHN.vertexbins(g, 2:9, nbins=4, by=by, method=method)
+        @test bins isa HHN.IndicesPartition
+        @test HHN.nelems(bins) == 8
+        @test all(v -> in(v, 2:9), bins.elems)
+        @test length(bins) <= 4
+    end
 end
 
 @testset "randpermgroups()" begin

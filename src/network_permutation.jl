@@ -3,31 +3,34 @@ Distribute the vertices of the weighted graph `g` into `nbins` bins,
 so that the vertices that have similar sum of outgoing/incoming edges are
 put into the same bin.
 """
-function vertexbins(g::AbstractSimpleWeightedGraph;
+function vertexbins(g::AbstractSimpleWeightedGraph,
+                    vertices::AbstractArray{Int}=1:nv(g);
                     by::Symbol=:out, method=:tree, kwargs...)
     if method == :sort
-        return vertexbins_sort(g; by=by, kwargs...)
+        return vertexbins_sort(g, vertices; by=by, kwargs...)
     elseif method == :tree
-        return vertexbins_tree(g; by=by, kwargs...)
+        return vertexbins_tree(g, vertices; by=by, kwargs...)
     else
         throw(ArgumentError("Unsupported vertex binning method=:$method"))
     end
 end
 
-function vertexbins_sort(g::AbstractSimpleWeightedGraph;
-                         by::Symbol=:out, nbins::Integer=10)
+function vertexbins_sort(g::AbstractSimpleWeightedGraph,
+                         vertices::AbstractArray{Int};
+                         by::Symbol=:out, nbins::Integer=10,
+                         output::Symbol=:vertex)
     if (by == :in) || (by == :out)
-        wvtxs = vec(sum(LightGraphs.weights(g), dims=by == :out ? 1 : 2))
+        wvtxs = vec(sum(LightGraphs.weights(g), dims=by == :out ? 1 : 2))[vertices]
         vorder = sortperm(wvtxs, rev=true)
     elseif by == :outXin
         nbins_inner = 2^ceil(Int, log2(sqrt(nbins)))
         # bin vertices by in and out edges
-        bin_out = fill(0, nv(g))
-        for (i, els) in enumerate(vertexbins(g, by=:out, nbins=nbins_inner))
+        bin_out = fill(0, length(vertices))
+        for (i, els) in enumerate(vertexbins_sort(g, vertices, by=:out, nbins=nbins_inner, output=:index))
             @inbounds bin_out[els] .= i
         end
-        bin_in = fill(0, nv(g))
-        for (i, els) in enumerate(vertexbins(g, by=:in, nbins=nbins_inner))
+        bin_in = fill(0, length(vertices))
+        for (i, els) in enumerate(vertexbins_sort(g, vertices, by=:in, nbins=nbins_inner, output=:index))
             @inbounds bin_in[els] .= i
         end
         # calculate vertex positions on the hibert curve going through the in and out bin ids
@@ -48,24 +51,30 @@ function vertexbins_sort(g::AbstractSimpleWeightedGraph;
         end
     end
     binstarts[end] = length(vorder) + 1
-    return IndicesPartition(vorder, binstarts)
+    return IndicesPartition(output == :vertex ? vertices[vorder] : vorder, binstarts)
 end
 
-function vertexbins_tree(g::AbstractSimpleWeightedGraph;
+function vertexbins_tree(g::AbstractSimpleWeightedGraph,
+                         vertices::AbstractArray{Int};
                          by::Symbol=:out, nbins::Integer=10,
                          weightf=sqrt, distf=sqrt)
     # vertex distances based on the in- and/or outcoming weights
     if (by == :in) || (by == :out)
-        wvtxs = reshape(sum(weightf, LightGraphs.weights(g), dims=by == :out ? 1 : 2), (1, nv(g)))
+        wvtxs = reshape(sum(weightf, LightGraphs.weights(g), dims=by == :out ? 1 : 2), (1, nv(g)))[:, vertices]
     elseif by == :outXin
         wvtxs = vcat(reshape(sum(weightf, LightGraphs.weights(g), dims=1), (1, nv(g))),
-                     reshape(sum(weightf, LightGraphs.weights(g), dims=2), (1, nv(g))))
+                     reshape(sum(weightf, LightGraphs.weights(g), dims=2), (1, nv(g))))[:, vertices]
     else
         throw(ArgumentError("Unsupported by=$by"))
     end
     wdists = pairwise(Euclidean(), wvtxs, dims=2)
     wtree = hclust(distf.(wdists), linkage=:ward, branchorder=:optimal)
-    return valuegroups(cutree(wtree, k=nbins))
+    res = valuegroups(cutree(wtree, k=nbins))
+    # convert from indices in vertices array to vertices
+    @inbounds for (i, el) in enumerate(res.elems)
+        res.elems[i] = vertices[el]
+    end
+    return res
 end
 
 """
