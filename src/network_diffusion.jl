@@ -16,13 +16,13 @@ end
 Find the matrix that transforms given initial node probabilities into
 stationary distribution of visiting probabilities of a random walk with restart.
 """
-random_walk_matrix(g::AbstractSimpleWeightedGraph;
-                   restart_probability::Number=0.1,
+random_walk_matrix(g::AbstractSimpleWeightedGraph,
+                   restart_probability::Number=0.1;
                    normalize_weights::Bool=true) =
     random_walk_matrix(Matrix(walk_matrix(g, normalize_weights=normalize_weights)),
-                       restart_probability=restart_probability)
+                       restart_probability)
 
-function random_walk_matrix(adjmtx::AbstractMatrix;
+function random_walk_matrix(adjmtx::AbstractMatrix,
                             restart_probability::Number = 0.1)
     size(adjmtx, 1) == size(adjmtx, 2) || throw(DimensionMismatch("Square matrix required"))
     return restart_probability * inv(
@@ -33,7 +33,7 @@ end
 function similarity_matrix(g::AbstractSimpleWeightedGraph,
                            node_weights::AbstractVector;
                            restart_probability::Number = 0.1)
-    return random_walk_matrix(g, restart_probability=restart_probability) *
+    return random_walk_matrix(g, restart_probability) *
            Diagonal(node_weights)
 end
 
