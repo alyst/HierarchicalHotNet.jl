@@ -71,6 +71,10 @@ function sortediweights(tree::SCCSeedling{T, I}, arr::AbstractArray{I},
     return weights
 end
 
+sortediweights(tree::SCCSeedling{T, I}, arr::TunnelsMatrix{I},
+               superset::AbstractVector) where {T, I} =
+    sortediweights(tree, arr.parent, superset)
+
 function partition(tree::SCCSeedling, n::Integer; ngroups::Integer=n)
     if tree.nptns_borrowed >= max(10, length(tree.weights))
         error("partition() called $(tree.nptns_borrowed) time(s) without matching releasepartition()")

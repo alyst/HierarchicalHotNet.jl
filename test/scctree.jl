@@ -112,4 +112,16 @@
         @test HHN.cut(g3tree_rev, 10.0) == [[1, 2], [3, 4]]
         @test HHN.cut(g3tree_rev, 11.0) == [[1, 2], [3, 4]]
     end
+
+    @testset "scctree(TunnelMatrix)" begin
+        mtx = weights(HHN.tarjan1983_example_graph())
+        tmtx = HHN.TunnelsMatrix(mtx, [2,1,3], [1,4,6,7])
+        tmtx_dense = collect(tmtx)
+
+        @testset "scctree(method=:$method)" for method in [:bottomup, :bisect]
+            tmtx_tree = HHN.scctree(tmtx, verbose=false, method=method)
+            tmtx_dense_tree = HHN.scctree(tmtx_dense, verbose=false, method=method)
+            @test tmtx_tree == tmtx_dense_tree
+        end
+    end
 end
