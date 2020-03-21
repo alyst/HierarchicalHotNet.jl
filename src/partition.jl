@@ -1,4 +1,4 @@
-const AbstractPartition = AbstractVector{<:AbstractVector{Int}}
+const AbstractPartition{T} = AbstractVector{<:AbstractVector{T}}
 nelems(ptn::AbstractPartition) = mapreduce(length, +, ptn, init=0)
 
 # type of parts returned by `Partition{T}`
