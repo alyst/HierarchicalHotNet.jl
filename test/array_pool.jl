@@ -6,6 +6,8 @@
         @inferred Vector{Int8} HHN.borrow!(pool, 2)
         @inferred Matrix{Int8} HHN.borrow!(pool, (2, 4))
         @inferred Array{Int8, 3} HHN.borrow!(pool, (2, 4, 2))
+        @inferred Matrix{Int8} HHN.borrow!(Int8, pool, (2, 4))
+        @test_throws MethodError HHN.borrow!(Int, pool, (2, 4))
     end
 
     pool1 = HHN.ArrayPool{Int}()
@@ -17,6 +19,10 @@
         @test v isa Vector{Int}
         @test length(v) == 2
         @test pool1.nborrowed == 1
+        vvv = HHN.borrow!(Int, pool1, 1)
+        @test vvv isa Vector{Int}
+        HHN.release!(pool1, vvv)
+        @test_throws MethodError HHN.borrow!(Float64, pool1)
         @test_throws Exception HHN.release!(pool1, Vector{UInt}())
         HHN.release!(pool1, v)
         @test pool1.nborrowed == 0
