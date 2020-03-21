@@ -168,6 +168,14 @@ end
         @test HHN.subgraph_adjacencymatrix(tmtx, [1,2,3,5]) == HHN.subgraph_adjacencymatrix(collect(tmtx), [1,2,3,5])
         @test_throws ArgumentError HHN.subgraph_adjacencymatrix(tmtx, [1,2,4,5,7])
         @test HHN.subgraph_adjacencymatrix(tmtx, [1,2,3,4,5,7]) == HHN.subgraph_adjacencymatrix(collect(tmtx), [1,2,3,4,5,7])
+
+        @testset "using ArrayPool" begin
+            pool = HHN.ArrayPool{Int}()
+            tview2 = @inferred HHN.subgraph_adjacencymatrix(tmtx, [1, 2, 3, 5], pool=pool)
+            @test pool.nborrowed > 0
+            HHN.release!(pool, tview2)
+            @test pool.nborrowed == 0 # it returned all its borrowed
+        end
     end
 
     @testset "tarjan1983" begin

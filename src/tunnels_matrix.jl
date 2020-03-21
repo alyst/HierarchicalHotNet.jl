@@ -188,15 +188,17 @@ indexvalues(::Type{I}, A::TunnelsMatrix{T},
                  Vector{T}(), A, test; kwargs...)
 
 function subgraph_adjacencymatrix(adjmtx::TunnelsMatrix,
-                                  comp_indices::AbstractVector{<:Integer})
+                                  comp_indices::AbstractVector{<:Integer};
+                                  pool::Union{ArrayPool{Int}, Nothing}=nothing)
+    # don't borrow parent rows and columns as their fate in SubArray is unclear
     parent_cols = parent_rows = Vector{Int}()
-    newentries = Vector{Int}()
-    newexits = Vector{Int}()
-    newtunnelstarts = Vector{Int}()
+    newentries = borrow!(Int, pool)
+    newexits = borrow!(Int, pool)
+    newtunnelstarts = borrow!(Int, pool)
     nnewparents = 0
     lastentry = adjmtx.nparent + nentries(adjmtx)
-    old2new_iem = fill(0, nentries(adjmtx))
-    old2new_ix = fill(0, maximum(adjmtx.tunnels.elems))
+    old2new_iem = fill!(borrow!(Int, pool, nentries(adjmtx)), 0)
+    old2new_ix = fill!(borrow!(Int, pool, maximum(adjmtx.tunnels.elems)), 0)
     last_new_iem = 0
     @inbounds for i in comp_indices
         if i <= adjmtx.nparent
@@ -257,9 +259,19 @@ function subgraph_adjacencymatrix(adjmtx::TunnelsMatrix,
         push!(newtunnelstarts, length(newexits) + 1)
     end
     parentmtx = view(adjmtx.parent, parent_rows, parent_cols)
+    release!(pool, old2new_iem)
+    release!(pool, old2new_ix)
     return TunnelsMatrix(parentmtx, newentries,
                          IndicesPartition(newexits, newtunnelstarts),
                          nnewparents, tunnel_weight=adjmtx.tunnel_weight)
+end
+
+function release!(pool::Union{ArrayPool{Int}, Nothing},
+                  mtx::TunnelsMatrix)
+    # release indices borrowed by subgraph_adjacencymatrix
+    release!(pool, mtx.entries)
+    release!(pool, mtx.tunnels.elems)
+    release!(pool, mtx.tunnels.starts)
 end
 
 function condense!(B::AbstractMatrix,
