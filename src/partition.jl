@@ -65,6 +65,18 @@ function Base.copy!(a::Partition{T}, b::Partition{T}) where T
     return a
 end
 
+function Base.filter!(f, dest::Partition{T}, src::Partition{T}) where T
+    empty!(dest)
+    for part in src
+        f(part) || continue
+        append!(dest.elems, part)
+        closepart!(dest)
+    end
+    return dest
+end
+
+Base.filter(f, src::Partition{T}) where T = filter!(f, Partition{T}(), src)
+
 function repeat!(ptn::Partition, n::Integer)
     (n == 1) && return ptn
     (n == 0) && return empty!(ptn)

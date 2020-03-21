@@ -125,4 +125,13 @@
         HHN.repeat!(ptn, 3)
         @test ptn == [Char[], Char[], Char[], Char[], Char[], Char[]]
     end
+
+    @testset "filter()" begin
+        ptn = HHN.Partition(['A', 'B', 'C', 'D', 'E'], [1, 2, 4, 6])
+        @test ptn == [['A'], ['B', 'C'], ['D', 'E']]
+        @test filter(part -> length(part) > 1, ptn) == [['B', 'C'], ['D', 'E']]
+        ptn2 = HHN.Partition{Char}()
+        @test filter!(part -> isempty(intersect(part, ['A', 'B'])), ptn2, ptn) === ptn2
+        @test ptn2 == [['D', 'E']]
+    end
 end
