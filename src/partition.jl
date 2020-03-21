@@ -23,6 +23,8 @@ end
 nparts(ptn::Partition) = length(ptn.starts) - 1
 nelems(ptn::Partition) = length(ptn.elems)
 
+elems(ptn::Partition) = ptn.elems
+
 # range of indices associated with i-th part
 partrange(ptn::Partition, i::Integer) = ptn.starts[i]:ptn.starts[i+1]-1
 # push element to the last part of partition

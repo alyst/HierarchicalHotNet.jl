@@ -6,6 +6,7 @@
         @test eltype(ptn0) === typeof(view([1,4,2], 2:3))
         @test HHN.nparts(ptn0) == 0
         @test HHN.nelems(ptn0) == 0
+        @test HHN.elems(ptn0) == Int[]
 
         HHN.pushelem!(ptn0, 3)
         @test HHN.nelems(ptn0) == 1
@@ -27,6 +28,7 @@
         @test length(ptn1) == 1
         @test HHN.nelems(ptn1) == 1
         @test ptn1 == [[1]]
+        @test HHN.elems(ptn1) == [1]
         i = 0
         for pt in ptn1
             i += 1
@@ -48,6 +50,7 @@
         @test HHN.nparts(ptn) == 2
         @test ptn[1] == ['A']
         @test ptn[2] == ['C', 'B']
+        @test HHN.elems(ptn) == ['A', 'C', 'B']
 
         HHN.pushelem!(ptn, 'E')
         HHN.pushelem!(ptn, 'D')
