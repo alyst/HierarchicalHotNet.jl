@@ -47,6 +47,13 @@ Base.iterate(ptn::Partition, i::Integer = 0) =
 Base.getindex(ptn::Partition, i::Integer) =
     view(ptn.elems, partrange(ptn, i))
 
+function Base.empty!(ptn::Partition)
+    empty!(ptn.elems)
+    empty!(ptn.starts)
+    push!(ptn.starts, 1)
+    return ptn
+end
+
 # partition of an integer vector
 const IndicesPartition = Partition{Int}
 

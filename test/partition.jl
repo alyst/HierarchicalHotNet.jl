@@ -16,6 +16,10 @@
         @test length(ptn0) == 1
         @test ptn0[1] == [3]
         @test ptn0 == [[3]]
+
+        @test !isempty(ptn0)
+        empty!(ptn0)
+        @test isempty(ptn0)
     end
 
     @testset "1-element partition" begin
