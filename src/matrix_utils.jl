@@ -1,10 +1,10 @@
-function sortedvalues(A::AbstractArray{T};
-                      skipval::Union{Number, Nothing} = zero(eltype(A)),
-                      threshold::Union{Number, Nothing}=nothing,
-                      alg=Base.Sort.defalg(A),
-                      rev::Bool=false) where T
-    isempty(A) && return Vector{T}()
-    res = Vector{T}()
+function sortedvalues!(res::AbstractVector{T}, A::AbstractArray{T};
+                       skipval::Union{Number, Nothing} = zero(eltype(A)),
+                       threshold::Union{Number, Nothing}=nothing,
+                       alg=Base.Sort.defalg(A),
+                       rev::Bool=false) where T
+    empty!(res)
+    isempty(A) && return res
     sizehint!(res, isnothing(skipval) ? length(A) : sum(w -> w != skipval, A))
     for a in A
         if (isnothing(skipval) || (a != skipval)) &&
@@ -15,6 +15,9 @@ function sortedvalues(A::AbstractArray{T};
     unique!(sort!(res, alg=alg, rev=rev))
     return res
 end
+
+sortedvalues(A::AbstractArray{T}; kwargs...) where T =
+    sortedvalues!(Vector{T}(), A; kwargs...)
 
 function indexvalues(::Type{I}, A::AbstractArray{T};
                      skipval::Union{Number, Nothing} = zero(eltype(A)),
