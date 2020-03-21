@@ -14,7 +14,7 @@ function strongly_connected_components!(components::IndicesPartition,
     nnodes = size(adjmtx, 1)
     nnodes == size(adjmtx, 2) ||
         throw(DimensionMismatch("adjmtx has to be square, $(size(adjmtx)) found"))
-    reset!(components, 0)
+    empty!(components)
     index = fill!(borrow!(Int, pool, nnodes), 0)    # first time the vertex was visited, 0=unseen
     stack = borrow!(Int, pool, 0)   # stores vertices which have been discovered and not yet assigned to any component
     onstack = fill!(borrow!(Int, pool, nnodes), 0)  # 1 if a vertex is waiting in the stack to receive a component assignment
