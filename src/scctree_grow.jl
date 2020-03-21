@@ -51,7 +51,7 @@ nvertices(tree::SCCSeedling) = length(tree.vertexnodes)
 # To improve the performance, the method uses `superset`, a sorted superset
 # of unique values present in `arr`.
 function sortediweights(tree::SCCSeedling{T, I}, arr::AbstractArray{I},
-                        superset::AbstractArray) where {T, I}
+                        superset::AbstractVector) where {T, I}
     weights = empty!(borrow!(tree.iweights_pool, length(superset)))
     # generate the unique stamp
     stamp = (tree.stamp += 1)
