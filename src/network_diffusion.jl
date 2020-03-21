@@ -1,9 +1,11 @@
 """
 Construct the walk matrix for the random walk.
 """
-function walk_matrix(g::AbstractSimpleWeightedGraph;
+function walk_matrix(adjmtx::AbstractMatrix{<:Number};
                      normalize_weights::Bool=true)
-    adj_mtx = copy(LightGraphs.weights(g))
+    (size(adjmtx, 1) == size(adjmtx, 2)) ||
+        throw(ArgumentError("Adjacency matrix needs to be square, $(size(adjmtx)) found"))
+    adj_mtx = copy(adjmtx)
     if normalize_weights
         node_degs = sum(adj_mtx, dims=1)
         node_degs[node_degs .== 0] .= 1
@@ -11,6 +13,9 @@ function walk_matrix(g::AbstractSimpleWeightedGraph;
     end
     return adj_mtx
 end
+
+walk_matrix(g::AbstractSimpleWeightedGraph; kwargs...) =
+    walk_matrix(LightGraphs.weights(g); kwargs...)
 
 """
 Find the matrix that transforms given initial node probabilities into
