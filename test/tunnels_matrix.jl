@@ -2,6 +2,8 @@
     @testset "empty" begin
         tmtx = @inferred HHN.TunnelsMatrix(Matrix{Int}(undef, 0, 0), Int[], Int[])
         @test eltype(tmtx) === Int
+        @test HHN.parenttype(tmtx) === Matrix{Int}
+        @test HHN.parenttype(typeof(tmtx)) === Matrix{Int}
         @test size(tmtx) == (0, 0)
         @test size(tmtx, 1) == 0
         @test size(tmtx, 2) == 0
@@ -62,6 +64,8 @@
 
     @testset "tunnels from [3,2] to [1,2] with a view" begin
         tmtx = @inferred HHN.TunnelsMatrix(view(mtx, 2:3, 1:2), [2,1], [1,2])
+        @test HHN.parenttype(tmtx) === typeof(view(mtx, 2:3, 1:2))
+        @test HHN.parenttype(typeof(tmtx)) === typeof(view(mtx, 2:3, 1:2))
         @test tmtx.tunnel_weight == 6.0
         @test size(tmtx) == (8, 8)
         @test collect(tmtx) ==

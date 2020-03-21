@@ -44,6 +44,9 @@ struct TunnelsMatrix{W, M <: AbstractMatrix} <: AbstractMatrix{W}
                       min(size(parent, 1), size(parent, 2)); kwargs...)
 end
 
+parenttype(::Type{TunnelsMatrix{W, M}}) where {W, M} = M
+parenttype(mtx::TunnelsMatrix) = parenttype(typeof(mtx))
+
 nentries(mtx::TunnelsMatrix) = length(mtx.entries)
 ntunnels(mtx::TunnelsMatrix) = nelems(mtx.tunnels)
 
