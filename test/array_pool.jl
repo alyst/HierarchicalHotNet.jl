@@ -19,10 +19,15 @@
         @test v isa Vector{Int}
         @test length(v) == 2
         @test pool1.nborrowed == 1
+        vv = HHN.borrow!(pool1)
+        @test isempty(vv)
+        @test pool1.nborrowed == 2
+        HHN.release!(pool1, vv)
         vvv = HHN.borrow!(Int, pool1, 1)
         @test vvv isa Vector{Int}
         HHN.release!(pool1, vvv)
         @test_throws MethodError HHN.borrow!(Float64, pool1)
+        @test pool1.nborrowed == 1
         @test_throws Exception HHN.release!(pool1, Vector{UInt}())
         HHN.release!(pool1, v)
         @test pool1.nborrowed == 0
