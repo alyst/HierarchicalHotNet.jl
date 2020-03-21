@@ -37,10 +37,8 @@ function strongly_connected_components!(components::IndicesPartition,
 
         while !isempty(dfs_stack)
             v = dfs_stack[end] #end is the most recently added item
-            v_outedges = view(adjmtx, :, v)
             u = 0 # index of the first unvisited neighbour
-            @inbounds for (vout, w) in enumerate(v_outedges)
-                isvalidedge(w, skipval=skipval, threshold=threshold, rev=rev) || continue
+            @inbounds for (vout, w) in outedges(adjmtx, v, skipval=skipval, threshold=threshold, rev=rev)
                 vout_index = index[vout]
                 if vout_index == 0
                     # unvisited neighbor found
