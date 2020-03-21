@@ -30,21 +30,43 @@ mutable struct SCCSeedling{T, I <: Integer, M <: AbstractMatrix}
     nptns_borrowed::Int
     ptns_pool::Vector{IndicesPartition}
 
-    function SCCSeedling(adjmtx::AbstractMatrix{T};
-                         skipval::Union{Number, Nothing}=zero(eltype(adjmtx)),
-                         rev::Bool=false) where T
-        I = Int64 # FIXME better/dynamic?
-        test = EdgeTest{T}(skipval=skipval, rev=rev, threshold=nothing)
-        iadjmtx, weights = indexvalues(I, adjmtx, test)
-        nv = size(adjmtx, 1)
-        new{T,I,typeof(iadjmtx)}(
-            rev, iadjmtx, weights, Vector{SCCSeedlingNode{I}}(),
-            fill(0, nv),
-            ArrayPool{I}(max(10, nv*10)),
-            1, fill(0, length(weights)),
-            ArrayPool{Int}(max(10, nv*10)),
-            0, Vector{IndicesPartition}())
+    function SCCSeedling{T,I}(adjmtx::AbstractMatrix{T}; rev::Bool = false) where {T, I}
+        empty_adjmtx = empty_adjacencymatrix(typeof(adjmtx), I)
+        new{T,I,typeof(empty_adjmtx)}(rev, empty_adjmtx,
+             Vector{T}(), Vector{SCCSeedlingNode{I}}(),
+             Vector{Int}(),
+             ArrayPool{I}(), 1, Vector{Int}(),
+             ArrayPool{Int}(),
+             0, Vector{IndicesPartition}())
     end
+end
+
+# FIXME better/dynamic than I=Int?
+SCCSeedling(adjmtx::AbstractMatrix{T}; kwargs...) where T =
+    reset!(SCCSeedling{T, Int}(adjmtx), adjmtx; kwargs...)
+
+indextype(::Type{<:SCCSeedling{<:Any, I}}) where I = I
+indextype(tree::SCCSeedling) = indextype(typeof(tree))
+
+function reset!(tree::SCCSeedling{T},
+                adjmtx::AbstractMatrix{T};
+                skipval::Union{Number, Nothing}=zero(eltype(adjmtx)),
+                rev::Bool=false) where T
+    test = EdgeTest{T}(skipval=skipval, rev=rev, threshold=nothing)
+    iadjmtx, _ = indexvalues!(tree.iadjmtx, tree.weights, adjmtx, test)
+    tree.iadjmtx = iadjmtx
+    nv = size(adjmtx, 1)
+    tree.rev = rev
+    empty!(tree.nodes)
+    fill!(resize!(tree.vertexnodes, nv), 0)
+
+    tree.stamp = 1
+    fill!(resize!(tree.weight_stamps, length(tree.weights)), 0)
+
+    tree.iweights_pool.borrow_limit = max(10, nv*10)
+    tree.indices_pool.borrow_limit = max(10, nv*10)
+
+    return tree
 end
 
 nvertices(tree::SCCSeedling) = length(tree.vertexnodes)
@@ -160,11 +182,13 @@ scctree(g::AbstractSimpleWeightedGraph; kwargs...) =
 
 function scctree(adjmtx::AbstractMatrix; method::Symbol=:bisect,
                  skipval::Union{Number, Nothing} = zero(eltype(adjmtx)),
-                 rev::Bool=false, kwargs...)
+                 rev::Bool=false,
+                 seedling::Union{SCCSeedling, Nothing} = nothing,
+                 kwargs...)
     nvertices = size(adjmtx, 1)
     nvertices == size(adjmtx, 2) || throw(DimensionMismatch("Adjacency matrix must be square"))
-    tree = SCCSeedling(adjmtx, skipval=skipval, rev=rev)
-
+    tree = isnothing(seedling) ? SCCSeedling(adjmtx, skipval=skipval, rev=rev) :
+           reset!(seedling, adjmtx, skipval=skipval, rev=rev)
     if method == :bisect
         scctree_bisect!(tree; kwargs...)
     elseif method == :bottomup
@@ -324,7 +348,7 @@ function scctree_bisect_subtree!(tree::SCCSeedling, adjmtx::AbstractMatrix{<:Int
         # build the subtree for the current component
         if length(comp_indices) > 1 # recursively cluster i-th component
             verbose && @info("scctree_scc!(component #$i)")
-            comp_adjmtx = subgraph_adjacencymatrix(adjmtx, comp_indices)
+            comp_adjmtx = subgraph_adjacencymatrix(adjmtx, comp_indices, tree.indices_pool)
             # recode indices in the current subtree into node/vertex refs
             sizehint!(empty!(comp_subtree), length(comp_indices))
             @inbounds for i in comp_indices
@@ -333,6 +357,9 @@ function scctree_bisect_subtree!(tree::SCCSeedling, adjmtx::AbstractMatrix{<:Int
             comp_root = scctree_bisect_subtree!(tree, comp_adjmtx, comp_subtree,
                                                 bisect_threshold, nodes_threshold,
                                                 weights, verbose=verbose)
+            if comp_adjmtx isa TunnelsMatrix
+                release!(tree.indices_pool, comp_adjmtx)
+            end
         else # single node/vertex, don't recurse
             comp_root = subtree[comp_indices[1]]
         end

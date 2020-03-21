@@ -89,6 +89,12 @@ Base.@propagate_inbounds function Base.getindex(mtx::TunnelsMatrix,
     end
 end
 
+empty_adjacencymatrix(::Type{M},
+                      element_type::Type{T} = eltype(M)) where {M <: TunnelsMatrix, T} =
+    TunnelsMatrix(empty_adjacencymatrix(parenttype(M), T),
+                  Vector{Int}(), IndicesPartition(), 0,
+                  tunnel_weight = 0)
+
 struct TunnelsMatrixOutedgesIterator{W <: Number, V <: AbstractVector, M <: AbstractMatrix, E <: EdgeTest} <:
             AbstractOutedgesIterator{W}
     col::V

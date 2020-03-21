@@ -76,10 +76,11 @@ struct SCCTree{T}
                                            node.nvertices,
                                            newchildren, node.vertices))
         end
+        empty!(tree.nodes) # avoid reusing the nodes as their arrays belong to SCCTree now
         @assert isempty(newnodes) || (newnodes[1].parent == 0) # root
         # update indices of nodes that bind directly to graph vertices
-        vertexnodes = tree.vertexnodes
-        @inbounds for (i, oldix) in enumerate(vertexnodes)
+        vertexnodes = similar(tree.vertexnodes)
+        @inbounds for (i, oldix) in enumerate(tree.vertexnodes)
             vertexnodes[i] = old2new[oldix]
         end
         return new{T}(tree.rev, newnodes, vertexnodes, thresholds)
