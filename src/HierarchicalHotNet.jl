@@ -1,6 +1,8 @@
 module HierarchicalHotNet
 
-using Random, LinearAlgebra, LightGraphs, SimpleWeightedGraphs, Clustering, Distances
+using Random, LinearAlgebra, LightGraphs, SimpleWeightedGraphs,
+      Distances, Clustering,
+      DataFrames
 
 include("array_pool.jl")
 include("partition.jl")
@@ -15,5 +17,6 @@ include("graphs.jl")
 include("connected_components.jl")
 include("scctree_grow.jl")
 include("scctree.jl")
+include("conncomp_graph_export.jl")
 
 end # module
