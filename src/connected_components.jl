@@ -1,14 +1,19 @@
+# state of Depth-First-Search: vertex index + edge iterator state
+const DFSState = Tuple{Int, Int}
+
 strongly_connected_components(adjmtx::AbstractMatrix{T},
                               test::EdgeTest{T} = EdgeTest{T}(),
-                              pool::Union{ArrayPool{Int}, Nothing} = nothing) where T =
+                              pool::Union{ArrayPool{Int}, Nothing} = nothing,
+                              dfs_pool::Union{ArrayPool{DFSState}, Nothing} = nothing) where T =
     strongly_connected_components!(IndicesPartition(Vector{Int}(undef, size(adjmtx, 1)), Vector{Int}()),
-                                   adjmtx, test, pool)
+                                   adjmtx, test, pool, dfs_pool)
 
 # Adapted/adopted from LightGraphs.jl
 function strongly_connected_components!(components::IndicesPartition,
                                         adjmtx::AbstractMatrix{T},
                                         test::EdgeTest{T},
-                                        pool::Union{ArrayPool{Int}, Nothing}) where T
+                                        pool::Union{ArrayPool{Int}, Nothing} = nothing,
+                                        dfs_pool::Union{ArrayPool{DFSState}, Nothing} = nothing) where T
     nnodes = size(adjmtx, 1)
     nnodes == size(adjmtx, 2) ||
         throw(DimensionMismatch("adjmtx has to be square, $(size(adjmtx)) found"))
@@ -20,7 +25,7 @@ function strongly_connected_components!(components::IndicesPartition,
     parent = fill!(borrow!(Int, pool, nnodes), 0)   # parent of every vertex in dfs
 
     count = 1
-    dfs_stack = borrow!(Int, pool, 0)   # depth-first search stack
+    dfs_stack = borrow!(DFSState, dfs_pool) # depth-first search stack
     @inbounds for s in axes(adjmtx, 2)
         (index[s] == 0) || continue # skip visited
         index[s] = count
@@ -31,12 +36,15 @@ function strongly_connected_components!(components::IndicesPartition,
         count += 1
 
         # start dfs from 's'
-        push!(dfs_stack, s)
-
+        push!(dfs_stack, (s, 0))
         while !isempty(dfs_stack)
-            v = dfs_stack[end] #end is the most recently added item
+            v, edgeitstate = dfs_stack[end] #end is the most recently added item
             u = 0 # index of the first unvisited neighbour
-            @inbounds for (vout, w) in outedges(adjmtx, v, test)
+            @inbounds edgeit = outedges(adjmtx, v, test)
+            @inbounds while true
+                iter = iterate(edgeit, edgeitstate)
+                isnothing(iter) && break
+                (vout, _), edgeitstate = iter
                 vout_index = index[vout]
                 if vout_index == 0
                     # unvisited neighbor found
@@ -44,7 +52,7 @@ function strongly_connected_components!(components::IndicesPartition,
                     break
                     #GOTO A push u onto DFS stack and continue DFS
                 elseif (onstack[vout] == 1) && (lowlink[v] > vout_index)
-                    # we have already seen n, but can update the lowlink of v
+                    # we have already seen vout, but can update the lowlink of v
                     # which has the effect of possibly keeping v on the stack until n is ready to pop.
                     # update lowest index 'v' can reach through out neighbors
                     lowlink[v] = vout_index
@@ -54,7 +62,7 @@ function strongly_connected_components!(components::IndicesPartition,
                 # All out neighbors already visited or no out neighbors
                 # we have fully explored the DFS tree from v.
                 # time to start popping.
-                popped = pop!(dfs_stack)
+                popped, _ = pop!(dfs_stack)
                 lowlink[parent[popped]] = min(lowlink[parent[popped]], lowlink[popped])
 
                 if index[v] == lowlink[v]
@@ -75,6 +83,8 @@ function strongly_connected_components!(components::IndicesPartition,
                     closepart!(components)
                 end
             else #LABEL A
+                # update edge iterator state in DFS stack
+                dfs_stack[end] = v, edgeitstate
                 # add unvisited neighbor to dfs
                 index[u] = count
                 lowlink[u] = count
@@ -82,13 +92,13 @@ function strongly_connected_components!(components::IndicesPartition,
                 parent[u] = v
                 count += 1
                 push!(stack, u)
-                push!(dfs_stack, u)
+                push!(dfs_stack, (u, 0))
                 # next iteration of while loop will expand the DFS tree from ui
             end
         end
     end
     @assert nelems(components) == nnodes
-    release!(pool, dfs_stack)
+    release!(dfs_pool, dfs_stack)
     release!(pool, stack)
     release!(pool, onstack)
     release!(pool, index)
