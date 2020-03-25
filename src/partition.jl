@@ -29,7 +29,14 @@ nelems(ptn::Partition) = length(ptn.elems)
 elems(ptn::Partition) = ptn.elems
 
 # range of indices associated with i-th part
-partrange(ptn::Partition, i::Integer) = ptn.starts[i]:ptn.starts[i+1]-1
+Base.@propagate_inbounds partrange(ptn::Partition, i::Integer) = ptn.starts[i]:ptn.starts[i+1]-1
+Base.@propagate_inbounds partlength(ptn::Partition, i::Integer) = (ptn.starts[i+1]-ptn.starts[i])
+Base.@propagate_inbounds ispartempty(ptn::Partition, i::Integer) = partlength(ptn, i) == 0
+
+# fallback
+Base.@propagate_inbounds partlength(ptn::AbstractVector{<:AbstractVector}, i::Integer) = length(ptn[i])
+Base.@propagate_inbounds ispartempty(ptn::AbstractVector{<:AbstractVector}, i::Integer) = isempty(ptn[i])
+
 # push element to the last part of partition
 pushelem!(ptn::Partition, el) = push!(ptn.elems, el)
 # finalize the current part

@@ -16,7 +16,14 @@
         @test HHN.nparts(ptn0) == 1
         @test length(ptn0) == 1
         @test ptn0[1] == [3]
+        @test HHN.partlength(ptn0, 1) == 1
+        @test !HHN.ispartempty(ptn0, 1)
         @test ptn0 == [[3]]
+        @test HHN.partlength([Int[], [1], [2, 3]], 1) == 0
+        @test HHN.partlength([[1, 2], [1], [2, 3]], 2) == 1
+        @test HHN.partlength([[1, 2], [1], [2, 3]], 3) == 2
+        @test HHN.ispartempty([Int[], [1], [2, 3]], 1)
+        @test !HHN.ispartempty([[1, 2], [1], [2, 3]], 2)
 
         @test !isempty(ptn0)
         empty!(ptn0)
@@ -124,6 +131,10 @@
         ptn = HHN.Partition(Char[], [1, 1, 1])
         HHN.repeat!(ptn, 3)
         @test ptn == [Char[], Char[], Char[], Char[], Char[], Char[]]
+        @test HHN.ispartempty(ptn, 1)
+        @test HHN.ispartempty(ptn, 6)
+        @test HHN.partlength(ptn, 6) == 0
+        @test HHN.ispartempty(ptn, 3)
     end
 
     @testset "filter()" begin
