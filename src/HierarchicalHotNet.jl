@@ -4,7 +4,7 @@ using Random, LinearAlgebra, LightGraphs, SimpleWeightedGraphs,
       Distances, Clustering,
       DataFrames
 
-include("array_pool.jl")
+include("object_pool.jl")
 include("partition.jl")
 include("utils.jl")
 include("edge_test.jl")
