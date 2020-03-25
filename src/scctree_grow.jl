@@ -45,8 +45,8 @@ end
 SCCSeedling(adjmtx::AbstractMatrix{T}; kwargs...) where T =
     reset!(SCCSeedling{T, Int}(adjmtx), adjmtx; kwargs...)
 
-indextype(::Type{<:SCCSeedling{<:Any, I}}) where I = I
-indextype(tree::SCCSeedling) = indextype(typeof(tree))
+iweighttype(::Type{<:SCCSeedling{<:Any, I}}) where I = I
+iweighttype(tree::SCCSeedling) = iweighttype(typeof(tree))
 
 function reset!(tree::SCCSeedling{T},
                 adjmtx::AbstractMatrix{T};
@@ -208,7 +208,7 @@ function scctree_bottomup!(tree::SCCSeedling; verbose::Bool=false)
     vertex_roots = collect(-1:-1:-nvertices(tree)) # start with each vertex being a root of a subtree
     comps = IndicesPartition(nvertices(tree), ngroups=nvertices(tree)) # reusable partition of vertices into components
     ncomps = length(comps)
-    I = indextype(tree)
+    I = iweighttype(tree)
     for threshold in length(tree.weights):-1:1
         threshold_cut = EdgeTest{I}(skipval=0, threshold=threshold, rev=false)
         strongly_connected_components!(comps, tree.iadjmtx, threshold_cut, tree.indices_pool)
@@ -281,7 +281,7 @@ function scctree_bisect_subtree!(tree::SCCSeedling, adjmtx::AbstractMatrix{<:Int
     @assert 1 <= nodes_lev <= length(weights) "nodes_threshold=$nodes_threshold outside of ($(first(weights))..$(last(weights)))"
     verbose && @info("subtree_threshold=weights[$subtree_lev]=$(weights[subtree_lev]), nodes_threshold=weights[$nodes_lev]=$(weights[nodes_lev]) of $weights")
 
-    I = indextype(tree)
+    I = iweighttype(tree)
     nnodes = length(subtree)
     # initialize with trivial components
     comps = partition(tree, nnodes, ngroups=nnodes)
