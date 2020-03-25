@@ -21,23 +21,18 @@ mutable struct SCCSeedling{T, I <: Integer, M <: AbstractMatrix}
     nodes::Vector{SCCSeedlingNode{I}} # nodes of the growing tree
     vertexnodes::Vector{Int} # maps graph verticex to the index of the node it is directly attached to
 
-    iweights_pool::ArrayPool{I} # pool of iweight vectors
     stamp::Int # next stamp id to use in sortediweights()
     weight_stamps::Vector{Int} # helper array to stamp values observed in adjmtx
 
-    indices_pool::ArrayPool{Int}
-
-    nptns_borrowed::Int
-    ptns_pool::Vector{IndicesPartition}
+    pools::ObjectPools
 
     function SCCSeedling{T,I}(adjmtx::AbstractMatrix{T}; rev::Bool = false) where {T, I}
         empty_adjmtx = empty_adjacencymatrix(typeof(adjmtx), I)
         new{T,I,typeof(empty_adjmtx)}(rev, empty_adjmtx,
-             Vector{T}(), Vector{SCCSeedlingNode{I}}(),
-             Vector{Int}(),
-             ArrayPool{I}(), 1, Vector{Int}(),
-             ArrayPool{Int}(),
-             0, Vector{IndicesPartition}())
+            Vector{T}(), Vector{SCCSeedlingNode{I}}(),
+            Vector{Int}(),
+            1, Vector{Int}(),
+            ObjectPools())
     end
 end
 
@@ -66,8 +61,10 @@ function reset!(tree::SCCSeedling{T,I},
     tree.stamp = 1
     fill!(resize!(tree.weight_stamps, length(tree.weights)), 0)
 
-    tree.iweights_pool.borrow_limit = max(10, nv*10)
-    tree.indices_pool.borrow_limit = max(10, nv*10)
+    arraypool(tree.pools, I).borrow_limit = max(10, nv*10)
+    arraypool(tree.pools, Int).borrow_limit = max(10, nv*10)
+    arraypool(tree.pools, DFSState).borrow_limit = 1
+    objpool(tree.pools, IndicesPartition).borrow_limit = max(10, length(tree.weights))
 
     return tree
 end
@@ -79,7 +76,7 @@ nvertices(tree::SCCSeedling) = length(tree.vertexnodes)
 # of unique values present in `arr`.
 function sortediweights(tree::SCCSeedling{T, I}, arr::AbstractArray{I},
                         superset::AbstractVector) where {T, I}
-    iweights = empty!(borrow!(tree.iweights_pool, length(superset)))
+    iweights = empty!(borrow!(arraypool(tree.pools, I), length(superset)))
     # generate the unique stamp
     stamp = (tree.stamp += 1)
     # stamp all observed values
@@ -101,22 +98,11 @@ sortediweights(tree::SCCSeedling{T, I}, arr::TunnelsMatrix{I},
                superset::AbstractVector) where {T, I} =
     sortediweights(tree, arr.parent, superset)
 
-function partition(tree::SCCSeedling, n::Integer; ngroups::Integer=n)
-    if tree.nptns_borrowed >= max(10, length(tree.weights))
-        error("partition() called $(tree.nptns_borrowed) time(s) without matching releasepartition()")
-    end
-    tree.nptns_borrowed += 1
-    return isempty(tree.ptns_pool) ?
-            IndicesPartition(n, ngroups=ngroups) :
-            reset!(pop!(tree.ptns_pool), n, ngroups=ngroups)
-end
+partition(tree::SCCSeedling, n::Integer; ngroups::Integer=n) =
+    reset!(borrow!(objpool(tree.pools, IndicesPartition)), n, ngroups=ngroups)
 
-# releases the weights vector back to the bool
-function release!(tree::SCCSeedling, ptn::IndicesPartition)
-    @assert tree.nptns_borrowed > 0
-    tree.nptns_borrowed -= 1
-    push!(tree.ptns_pool, ptn)
-end
+release!(tree::SCCSeedling, ptn::IndicesPartition) =
+    release!(objpool(tree.pools, IndicesPartition), ptn)
 
 # appends one node to the tree for each part `comps`
 # `comps` parts represent strongly connected components at `threshold` level
@@ -214,7 +200,7 @@ function scctree_bottomup!(tree::SCCSeedling; verbose::Bool=false)
     I = iweighttype(tree)
     for threshold in length(tree.weights):-1:1
         threshold_cut = EdgeTest{I}(skipval=0, threshold=threshold, rev=false)
-        strongly_connected_components!(comps, tree.iadjmtx, threshold_cut, tree.indices_pool)
+        strongly_connected_components!(comps, tree.iadjmtx, threshold_cut, tree.pools)
         (length(comps) == ncomps) && continue # same components as for the stronger threshold
         ncomps = length(comps) # new partition
         verbose && @info("$(ncomps) components detected at threshold=$threshold")
@@ -250,6 +236,9 @@ function scctree_bisect_subtree!(tree::SCCSeedling, adjmtx::AbstractMatrix{<:Int
                                  verbose::Bool=false) where T
     verbose && @info "scctree_bisect_range!($(subtree) nodes, subtree_threshold=$subtree_threshold, nodes_threshold=$nodes_threshold)"
     weights = sortediweights(tree, adjmtx, parent_weights)
+    intpool = arraypool(tree.pools, Int)
+    # using pool actually slows it down
+    weightpool = NoopArrayPool{iweighttype(tree)}()#arraypool(tree.pools, iweighttype(tree))
     # release!(tree.iweights_pool, weights) should be called before returning from this function
     if isempty(weights) # (condensed) graph with no edges
         # i.e. the original graph has multple connected components
@@ -257,7 +246,7 @@ function scctree_bisect_subtree!(tree::SCCSeedling, adjmtx::AbstractMatrix{<:Int
         verbose && @info("No edges, creating the root node to join connected components")
         onecomp = partition(tree, length(subtree), ngroups=1)
         append_components!(tree, onecomp, subtree, subtree_threshold)
-        release!(tree.iweights_pool, weights)
+        release!(weightpool, weights)
         release!(tree, onecomp)
         return length(tree.nodes)
     end
@@ -295,7 +284,7 @@ function scctree_bisect_subtree!(tree::SCCSeedling, adjmtx::AbstractMatrix{<:Int
             if subtree_threshold == 0 # it's the root subtree (all others should have subtree threshold)
                 # check if graph has multiple connected components
                 subtree_cut = EdgeTest{I}(skipval=0, threshold=weights[subtree_lev], rev=false)
-                strongly_connected_components!(comps, adjmtx, subtree_cut, tree.indices_pool)
+                strongly_connected_components!(comps, adjmtx, subtree_cut, tree.pools)
                 if length(comps) == 1
                     # it's a connected graph, so assign the threshold to the root
                     subtree_threshold = weights[subtree_lev]
@@ -309,7 +298,7 @@ function scctree_bisect_subtree!(tree::SCCSeedling, adjmtx::AbstractMatrix{<:Int
             verbose && @info("Creating a node for subtree $subtree at subtree_lev=$subtree_lev, nodes_lev=$nodes_lev")
             # reset to a single component
             append_components!(tree, reset!(comps, ngroups=1), subtree, subtree_threshold)
-            release!(tree.iweights_pool, weights)
+            release!(weightpool, weights)
             release!(tree, comps)
             return length(tree.nodes)
         end
@@ -319,7 +308,7 @@ function scctree_bisect_subtree!(tree::SCCSeedling, adjmtx::AbstractMatrix{<:Int
         @assert subtree_lev < bisect_lev < nodes_lev
         bisect_threshold = weights[bisect_lev]
         bisect = EdgeTest{I}(skipval=0, threshold=bisect_threshold, rev=false)
-        strongly_connected_components!(comps, adjmtx, bisect, tree.indices_pool)
+        strongly_connected_components!(comps, adjmtx, bisect, tree.pools)
         verbose && @info("Identified $ncomps strongly connected component(s) at threshold[$bisect_lev]=$bisect_threshold: $index2comp")
         if length(comps) == 1 # single component
             verbose && @info("Single SCC")
@@ -344,14 +333,14 @@ function scctree_bisect_subtree!(tree::SCCSeedling, adjmtx::AbstractMatrix{<:Int
     end
 
     # build a graph of components relationships
-    comp_roots = borrow!(tree.indices_pool, 0)  # nodes of the roots of subtrees for each component
-    comp_subtree = borrow!(tree.indices_pool, 0) # reusable vector for component subtree refs
+    comp_roots = borrow!(intpool, 0)  # nodes of the roots of subtrees for each component
+    comp_subtree = borrow!(intpool, 0) # reusable vector for component subtree refs
     # recurse into each of multiple components
     for (i, comp_indices) in enumerate(comps)
         # build the subtree for the current component
         if length(comp_indices) > 1 # recursively cluster i-th component
             verbose && @info("scctree_scc!(component #$i)")
-            comp_adjmtx = subgraph_adjacencymatrix(adjmtx, comp_indices, tree.indices_pool)
+            comp_adjmtx = subgraph_adjacencymatrix(adjmtx, comp_indices, intpool)
             # recode indices in the current subtree into node/vertex refs
             sizehint!(empty!(comp_subtree), length(comp_indices))
             @inbounds for i in comp_indices
@@ -361,17 +350,17 @@ function scctree_bisect_subtree!(tree::SCCSeedling, adjmtx::AbstractMatrix{<:Int
                                                 bisect_threshold, nodes_threshold,
                                                 weights, verbose=verbose)
             if comp_adjmtx isa TunnelsMatrix
-                release!(tree.indices_pool, comp_adjmtx)
+                release!(intpool, comp_adjmtx)
             end
         else # single node/vertex, don't recurse
             comp_root = subtree[comp_indices[1]]
         end
         push!(comp_roots, comp_root)
     end
-    release!(tree.indices_pool, comp_subtree)
+    release!(intpool, comp_subtree)
 
     # build a graph of components relationships
-    comps_adjmtx = condense!(borrow!(tree.iweights_pool, (length(comps), length(comps))),
+    comps_adjmtx = condense!(borrow!(weightpool, (length(comps), length(comps))),
                              adjmtx, comps)
     # clear the diagonal
     @inbounds for i in axes(comps_adjmtx, 1)
@@ -382,9 +371,9 @@ function scctree_bisect_subtree!(tree::SCCSeedling, adjmtx::AbstractMatrix{<:Int
     res = scctree_bisect_subtree!(tree, comps_adjmtx, comp_roots,
                                   subtree_threshold, bisect_threshold,
                                   weights, verbose=verbose)
-    release!(tree.iweights_pool, weights)
-    release!(tree.iweights_pool, comps_adjmtx)
-    release!(tree.indices_pool, comp_roots)
+    release!(weightpool, comps_adjmtx)
+    release!(weightpool, weights)
+    release!(intpool, comp_roots)
     release!(tree, comps)
     return res
 end

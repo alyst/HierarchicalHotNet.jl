@@ -13,13 +13,16 @@
     @test sort!.(HHN.strongly_connected_components(HHN.tarjan1983_example_graph().weights, HHN.EdgeTest{Float64}(threshold=20))) == [[1], [5], [2, 3, 7], [4], [6]]
     @test sort!.(HHN.strongly_connected_components(HHN.tarjan1983_example_graph().weights, HHN.EdgeTest{Float64}(threshold=10))) == [[1, 2, 3, 4, 5, 7], [6]]
 
-    pool = HHN.ArrayPool{Int}()
-    @test sort!.(HHN.strongly_connected_components(HHN.tarjan1983_example_graph().weights, HHN.EdgeTest{Float64}(threshold=10), pool)) == [[1, 2, 3, 4, 5, 7], [6]]
-    @test pool.nborrowed == 0
+    pools = HHN.ObjectPools()
+    @test sort!.(HHN.strongly_connected_components(HHN.tarjan1983_example_graph().weights, HHN.EdgeTest{Float64}(threshold=10), pools)) == [[1, 2, 3, 4, 5, 7], [6]]
+    @test haskey(pools, Vector{Int})
+    @test pools[Vector{Int}].nborrowed == 0
+    @test haskey(pools, Vector{HHN.DFSState})
+    @test pools[Vector{HHN.DFSState}].nborrowed == 0
 
     # test in-place version
     ptn = HHN.IndicesPartition(3)
-    @test HHN.strongly_connected_components!(ptn, HHN.tarjan1983_example_graph().weights, HHN.EdgeTest{Float64}(threshold=10), pool) === ptn
+    @test HHN.strongly_connected_components!(ptn, HHN.tarjan1983_example_graph().weights, HHN.EdgeTest{Float64}(threshold=10), pools) === ptn
     @test sort!.(ptn) == [[1, 2, 3, 4, 5, 7], [6]]
 
     @testset "strongly_connected_components(TunnelMatrix)" begin

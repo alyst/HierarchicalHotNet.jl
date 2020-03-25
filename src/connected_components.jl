@@ -3,34 +3,35 @@ const DFSState = Tuple{Int, Int}
 
 strongly_connected_components(adjmtx::AbstractMatrix{T},
                               test::EdgeTest{T} = EdgeTest{T}(),
-                              pool::Union{ArrayPool{Int}, Nothing} = nothing,
-                              dfs_pool::Union{ArrayPool{DFSState}, Nothing} = nothing) where T =
+                              pools::Union{ObjectPools, Nothing} = nothing) where T =
     strongly_connected_components!(IndicesPartition(Vector{Int}(undef, size(adjmtx, 1)), Vector{Int}()),
-                                   adjmtx, test, pool, dfs_pool)
+                                   adjmtx, test, pools)
 
 # Adapted/adopted from LightGraphs.jl
 function strongly_connected_components!(components::IndicesPartition,
                                         adjmtx::AbstractMatrix{T},
                                         test::EdgeTest{T},
-                                        pool::Union{ArrayPool{Int}, Nothing} = nothing,
-                                        dfs_pool::Union{ArrayPool{DFSState}, Nothing} = nothing) where T
+                                        pools::Union{ObjectPools, Nothing} = nothing) where T
     nnodes = size(adjmtx, 1)
     nnodes == size(adjmtx, 2) ||
         throw(DimensionMismatch("adjmtx has to be square, $(size(adjmtx)) found"))
     empty!(components)
-    index = fill!(borrow!(Int, pool, nnodes), 0)    # first time the vertex was visited, 0=unseen
-    stack = borrow!(Int, pool, 0)   # stores vertices which have been discovered and not yet assigned to any component
-    onstack = fill!(borrow!(Int, pool, nnodes), 0)  # 1 if a vertex is waiting in the stack to receive a component assignment
-    lowlink = fill!(borrow!(Int, pool, nnodes), 0)  # lowest index vertex that it can reach through back edge (index array not vertex id number)
-    parent = fill!(borrow!(Int, pool, nnodes), 0)   # parent of every vertex in dfs
+    intpool = arraypool(pools, Int)
+    index = fill!(borrow!(intpool, nnodes), 0)    # first time the vertex was visited, 0=unseen
+    stack = borrow!(intpool, 0)   # stores vertices which have been discovered and not yet assigned to any component
+    boolpool = arraypool(pools, Bool)
+    onstack = fill!(borrow!(boolpool, nnodes), false)  # if a vertex is waiting in the stack to receive a component assignment
+    lowlink = fill!(borrow!(intpool, nnodes), 0)  # lowest index vertex that it can reach through back edge (index array not vertex id number)
+    parent = fill!(borrow!(intpool, nnodes), 0)   # parent of every vertex in dfs
 
     count = 1
-    dfs_stack = borrow!(DFSState, dfs_pool) # depth-first search stack
+    dfspool = arraypool(pools, DFSState)
+    dfs_stack = borrow!(dfspool) # depth-first search stack
     @inbounds for s in axes(adjmtx, 2)
         (index[s] == 0) || continue # skip visited
         index[s] = count
         lowlink[s] = count
-        onstack[s] = 1
+        onstack[s] = true
         parent[s] = s
         push!(stack, s)
         count += 1
@@ -51,7 +52,7 @@ function strongly_connected_components!(components::IndicesPartition,
                     u = vout
                     break
                     #GOTO A push u onto DFS stack and continue DFS
-                elseif (onstack[vout] == 1) && (lowlink[v] > vout_index)
+                elseif onstack[vout] && (lowlink[v] > vout_index)
                     # we have already seen vout, but can update the lowlink of v
                     # which has the effect of possibly keeping v on the stack until n is ready to pop.
                     # update lowest index 'v' can reach through out neighbors
@@ -72,7 +73,7 @@ function strongly_connected_components!(components::IndicesPartition,
                         # everything on the stack until we see v is in the SCC rooted at v.
                         popped = pop!(stack)
                         pushelem!(components, popped)
-                        onstack[popped] = 0
+                        onstack[popped] = false
                         # popped has been assigned a component, so we will never see it again.
                         if popped == v
                             # we have drained the stack of an entire component.
@@ -88,7 +89,7 @@ function strongly_connected_components!(components::IndicesPartition,
                 # add unvisited neighbor to dfs
                 index[u] = count
                 lowlink[u] = count
-                onstack[u] = 1
+                onstack[u] = true
                 parent[u] = v
                 count += 1
                 push!(stack, u)
@@ -98,11 +99,11 @@ function strongly_connected_components!(components::IndicesPartition,
         end
     end
     @assert nelems(components) == nnodes
-    release!(dfs_pool, dfs_stack)
-    release!(pool, stack)
-    release!(pool, onstack)
-    release!(pool, index)
-    release!(pool, lowlink)
-    release!(pool, parent)
+    release!(dfspool, dfs_stack)
+    release!(intpool, parent)
+    release!(intpool, lowlink)
+    release!(intpool, stack)
+    release!(intpool, index)
+    release!(boolpool, onstack)
     return components
 end
