@@ -1,3 +1,16 @@
+function import_digraph(edges_df::DataFrame;
+                        src_col::Symbol, dest_col::Symbol, weight_col::Symbol)
+    edges_df = copy(edges_df, copycols=false)
+    nodes = sort!(unique(vcat(edges_df[!, src_col], edges_df[!, dest_col])))
+    edges_df[!, :__src_node__] = searchsortedfirst.(Ref(nodes), edges_df[!, src_col])
+    edges_df[!, :__dest_node__] = searchsortedfirst.(Ref(nodes), edges_df[!, dest_col])
+    res = SimpleWeightedDiGraph{Int, Float64}(length(nodes))
+    for r in eachrow(edges_df)
+        add_edge!(res, r.__src_node__, r.__dest_node__, r[weight_col])
+    end
+    return res, nodes
+end
+
 function hhotnet_example_graph()
     g = SimpleWeightedGraph(25)
     gene_scores_a = Vector{Float64}()

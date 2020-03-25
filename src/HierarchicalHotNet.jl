@@ -1,8 +1,10 @@
 module HierarchicalHotNet
 
 using Random, LinearAlgebra, LightGraphs, SimpleWeightedGraphs,
+      Statistics, StatsBase, Distributions, HypothesisTests,
       Distances, Clustering,
       DataFrames
+using Printf: @sprintf
 
 include("object_pool.jl")
 include("partition.jl")
@@ -17,6 +19,7 @@ include("connected_components.jl")
 include("scctree_grow.jl")
 include("scctree.jl")
 include("flows.jl")
+include("stats.jl")
 include("graph_export.jl")
 
 end # module
