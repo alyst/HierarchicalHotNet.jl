@@ -75,6 +75,28 @@ function release!(pool::ArrayPool{T}, arr::Array{T}) where T
     return pool
 end
 
+"""
+Fake array pool that just constructs arrays.
+"""
+struct NoopObjectPool{T} <: AbstractObjectPool{T}
+    NoopObjectPool{T}(borrow_limit::Integer = 0) where T =
+        new{T}()
+end
+
+borrow!(::NoopObjectPool{T}) where T = T()
+
+# do nothing
+release!(::NoopObjectPool{T}, obj::T) where T = ()
+
+const NoopArrayPool{T} = NoopObjectPool{Vector{T}}
+
+borrow!(::NoopArrayPool{T}, len::Integer) where T =
+    Vector{T}(undef, len)
+borrow!(::NoopArrayPool{T}, size::NTuple{N}) where {T, N} =
+    Array{T, N}(undef, size)
+
+release!(::NoopArrayPool{T}, arr::Array{T}) where T = ()
+
 # no-pool versions of borrow and release to make
 # the ArrayPool usage optional and transparent
 borrow!(::Type{T}, ::Nothing) where T = T()

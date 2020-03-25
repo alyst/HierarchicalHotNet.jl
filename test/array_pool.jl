@@ -59,3 +59,20 @@
         @test pool2.nborrowed == 0
     end
 end
+
+@testset "NoopArrayPool" begin
+    strnopool = HHN.NoopArrayPool{String}(2)
+
+    @test eltype(HHN.NoopArrayPool{Char}) === Char
+    @test eltype(strnopool) === String
+    begin
+        v1 = @inferred HHN.borrow!(strnopool, 5)
+        @test v1 isa Vector{String}
+        @test length(v1) == 5
+        v2 = @inferred HHN.borrow!(strnopool, (15, 4))
+        @test size(v2) == (15, 4)
+        HHN.release!(strnopool, v2)
+        HHN.release!(strnopool, v1)
+        @test_throws MethodError HHN.release!(strnopool, Int[])
+    end
+end
