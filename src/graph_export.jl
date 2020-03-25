@@ -7,13 +7,14 @@ function export_flowgraph(
     flow_edges::Bool=false,
     pvalue_mw_max::Number=0.05,
     pvalue_fisher_max::Number=0.05,
-    verbose::Bool=false
+    verbose::Bool=false,
+    pools::Union{ObjectPools, Nothing}=nothing
 ) where T
     nvertices(tree) == size(walkmatrix, 1) == size(walkmatrix, 2) ||
         throw(DimensionMismatch("Number of tree vertices ($(nvertices(tree))) doesn't match the walk matrix dimensions ($(size(walkmatrix)))"))
     subgraph, flows, conncomps = flowgraph(tree, walkmatrix, sources, sinks,
                                            EdgeTest{T}(threshold=threshold),
-                                           minsize=1)
+                                           pools)
     components_df = conncomponents_stats(conncomps, vertices_stats,
                                          average_weights=true,
                                          mannwhitney_tests=true)
