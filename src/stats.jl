@@ -198,9 +198,10 @@ function treecut_stats(tree::SCCTree,
             push!(topn_nsinks, sum(comp -> sum(i -> in(i, sinkset), comp), topn_comps))
         end
         if !isnothing(nflows_v)
-            compsquares = sum(l -> abs2(float(l)), comps_size)
+            compsquares = sum(l -> ifelse(l > 1, abs2(float(l)), 0.2), comps_size)
             # check if the components changed significantly enough
-            if (lastcompsquares == 0) || (compsquares/lastcompsquares <= nflows_ratio)
+            if (lastcompsquares == 0) || (i == length(tree.thresholds)) ||
+               (compsquares/lastcompsquares <= nflows_ratio)
                 lastcompsquares = compsquares
                 ithresh = searchsortedfirst(weights, thresh)
                 @assert (ithresh <= length(weights)) && (weights[ithresh] == thresh)
