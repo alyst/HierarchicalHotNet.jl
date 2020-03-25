@@ -16,6 +16,6 @@ include("graphs.jl")
 include("connected_components.jl")
 include("scctree_grow.jl")
 include("scctree.jl")
-include("conncomp_graph_export.jl")
+include("graph_export.jl")
 
 end # module
