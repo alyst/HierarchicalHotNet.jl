@@ -24,10 +24,4 @@
     ptn = HHN.IndicesPartition(3)
     @test HHN.strongly_connected_components!(ptn, HHN.tarjan1983_example_graph().weights, HHN.EdgeTest{Float64}(threshold=10), pools) === ptn
     @test sort!.(ptn) == [[1, 2, 3, 4, 5, 7], [6]]
-
-    @testset "strongly_connected_components(TunnelMatrix)" begin
-        mtx = weights(HHN.tarjan1983_example_graph())
-        tmtx = HHN.TunnelsMatrix(mtx, [2,1,3], [1,4,6,7])
-        @test HHN.strongly_connected_components(tmtx) == HHN.strongly_connected_components(collect(tmtx))
-    end
 end

@@ -94,10 +94,6 @@ function sortediweights(tree::SCCSeedling{T, I}, arr::AbstractArray{I},
     return iweights
 end
 
-sortediweights(tree::SCCSeedling{T, I}, arr::TunnelsMatrix{I},
-               superset::AbstractVector) where {T, I} =
-    sortediweights(tree, arr.parent, superset)
-
 partition(tree::SCCSeedling, n::Integer; ngroups::Integer=n) =
     reset!(borrow!(objpool(tree.pools, IndicesPartition)), n, ngroups=ngroups)
 
@@ -325,13 +321,6 @@ function scctree_bisect_subtree!(tree::SCCSeedling, adjmtx::AbstractMatrix{<:Int
 
     # multiple components
     verbose && @info("Building subtrees of each of $ncomps SCCs")
-    if adjmtx isa TunnelsMatrix
-        # subgraph!() and condense!(TunnelsMatrix) rely on vertices being sorted within components
-        for comp in comps
-            sort!(comp)
-        end
-    end
-
     # build a graph of components relationships
     comp_roots = borrow!(intpool, 0)  # nodes of the roots of subtrees for each component
     comp_subtree = borrow!(intpool, 0) # reusable vector for component subtree refs
@@ -349,9 +338,6 @@ function scctree_bisect_subtree!(tree::SCCSeedling, adjmtx::AbstractMatrix{<:Int
             comp_root = scctree_bisect_subtree!(tree, comp_adjmtx, comp_subtree,
                                                 bisect_threshold, nodes_threshold,
                                                 weights, verbose=verbose)
-            if comp_adjmtx isa TunnelsMatrix
-                release!(intpool, comp_adjmtx)
-            end
         else # single node/vertex, don't recurse
             comp_root = subtree[comp_indices[1]]
         end

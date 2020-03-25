@@ -40,35 +40,6 @@ function conncomponents_graph(
         vertices_df = join(vertices_df, vertex_info, on=:vertex, kind=:left)
     end
     vertices_df[!, :covertex] .= vertices_df[!, :vertex]
-    if walkmatrix isa TunnelsMatrix
-        vertices_df[!, :is_entry_ref] .= false
-        vertices_df[!, :is_exit_ref] .= false
-        vertices_df[!, :is_entry] .= false
-        vertices_df[!, :is_exit] .= false
-        lastentry = walkmatrix.nparent + nentries(walkmatrix)
-        for (i, v) in enumerate(vertices_df.vertex)
-            if v > walkmatrix.nparent
-                if v <= lastentry
-                    vref = walkmatrix.entries[v - walkmatrix.nparent]
-                    vertices_df[i, :is_entry] = true
-                    vrefpos = searchsortedfirst(vertices_df.vertex, vref)
-                    if (vrefpos <= nrow(vertices_df)) &&
-                       (vertices_df.vertex[vrefpos] == vref)
-                        vertices_df[vrefpos, :is_entry_ref] = true
-                    end
-                else
-                    vref = walkmatrix.tunnels.elems[v - lastentry]
-                    vertices_df[i, :is_exit] = true
-                    vrefpos = searchsortedfirst(vertices_df.vertex, vref)
-                    if (vrefpos <= nrow(vertices_df)) &&
-                       (vertices_df.vertex[vrefpos] == vref)
-                        vertices_df[vrefpos, :is_exit_ref] = true
-                    end
-                end
-                vertices_df[i, :covertex] = vref
-            end
-        end
-    end
     # merge together gene vertices and their sinks/sources mirrors
     covertices_df = by(vertices_df, [:component, :covertex]) do covertex_df
         vertices = sort!(covertex_df.vertex)
