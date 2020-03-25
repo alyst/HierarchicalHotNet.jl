@@ -83,23 +83,23 @@ function condense!(B::AbstractMatrix{T}, A::AbstractMatrix{T},
         throw(DimensionMismatch("A size ($(size(A))) and row/col labels sizes ($nrows, $ncols) do not match."))
     size(B) == (length(row_groups), length(col_groups)) ||
         throw(DimensionMismatch("B size ($(size(B))) and row/col group number ($(length(row_groups)), $(length(col_groups))) do not match."))
-    fill!(B, defaultweight(test))
     @inbounds for (jj, cols) in enumerate(col_groups)
-        B_j = view(B, :, jj)
+        Bjj = view(B, :, jj)
+        firstcol = true
         for j in cols
             Aj = view(A, :, j)
             for (ii, rows) in enumerate(row_groups)
-                Bij = B_j[ii]
-                for i in rows
+                Bij = ifelse(firstcol, defaultweight(test), Bjj[ii])
+                @simd for i in rows
                     w = Aj[i]
-                    !isnothing(skipval(test)) && (w == skipval(test)) && continue
-                    if (!isnothing(skipval) && (Bij == skipval(test))) ||
-                        isweaker(Bij, w, rev=isreverse(test))
-                        Bij = w
-                    end
+                    Bij = ifelse((isnothing(skipval(test)) || (w != skipval(test))) &&
+                                 ((!isnothing(skipval(test)) && (Bij == skipval(test))) ||
+                                  isweaker(Bij, w, rev=isreverse(test))),
+                                 w, Bij)
                 end
-                B_j[ii] = Bij
+                Bjj[ii] = Bij
             end
+            firstcol = false
         end
     end
     return B
