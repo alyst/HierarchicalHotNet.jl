@@ -53,10 +53,10 @@ Base.IteratorSize(::Type{<:Partition}) = Base.HasLength()
 Base.length(ptn::Partition) = nparts(ptn)
 Base.size(ptn::Partition) = (length(ptn),)
 
-Base.iterate(ptn::Partition, i::Integer = 0) =
-    i < length(ptn) ? (ptn[i+1], i+1) : nothing
+Base.@propagate_inbounds Base.iterate(ptn::Partition, i::Integer = 0) =
+    i < length(ptn) ? (@inbounds(ptn[i+1]), i+1) : nothing
 
-Base.getindex(ptn::Partition, i::Integer) =
+Base.@propagate_inbounds Base.getindex(ptn::Partition, i::Integer) =
     view(ptn.elems, partrange(ptn, i))
 
 function Base.empty!(ptn::Partition)
