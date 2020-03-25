@@ -41,17 +41,20 @@ mutable struct SCCSeedling{T, I <: Integer, M <: AbstractMatrix}
     end
 end
 
-# FIXME better/dynamic than I=Int?
-SCCSeedling(adjmtx::AbstractMatrix{T}; kwargs...) where T =
-    reset!(SCCSeedling{T, Int}(adjmtx), adjmtx; kwargs...)
+# FIXME better/dynamic than I=Int32?
+# a) Int32 is enough for most usecases (matrices up to 46000x46000)
+# b) Int32 is different from Int (on most machines),
+#    which is good since sizes for indices and weight vectors are different
+SCCSeedling(adjmtx::AbstractMatrix{T}, ::Type{I} = Int32; kwargs...) where {T, I} =
+    reset!(SCCSeedling{T, I}(adjmtx), adjmtx; kwargs...)
 
 iweighttype(::Type{<:SCCSeedling{<:Any, I}}) where I = I
 iweighttype(tree::SCCSeedling) = iweighttype(typeof(tree))
 
-function reset!(tree::SCCSeedling{T},
+function reset!(tree::SCCSeedling{T,I},
                 adjmtx::AbstractMatrix{T};
                 skipval::Union{Number, Nothing}=zero(eltype(adjmtx)),
-                rev::Bool=false) where T
+                rev::Bool=false) where {T,I}
     test = EdgeTest{T}(skipval=skipval, rev=rev, threshold=nothing)
     iadjmtx, _ = indexvalues!(tree.iadjmtx, tree.weights, adjmtx, test)
     tree.iadjmtx = iadjmtx
