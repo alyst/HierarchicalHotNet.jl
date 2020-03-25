@@ -30,6 +30,11 @@
         subgraph, flows = HHN.componentsflowgraph(adjmtx, [[1]], [[2]])
         @test flows == [1 => 1]
         @test subgraph == [1 => 1]
+
+        # self-loops when the matrix doesn't have them
+        subgraph, flows = HHN.componentsflowgraph(fill(0.0, (1, 1)), [[1]], [[2]])
+        @test flows == [1 => 1]
+        @test subgraph == [1 => 1]
     end
 
     @testset "2x2" begin
@@ -42,6 +47,11 @@
         @test subgraph == flows
 
         subgraph, flows = HHN.componentsflowgraph([1 1; 0 1], [[1], [1]], [[1], [1]])
+        @test sort(flows) == [1 => 1, 2 => 1, 2 => 2]
+        @test sort(subgraph) == [1 => 1, 2 => 1, 2 => 2]
+
+        # self-loops when there are no edges again
+        subgraph, flows = HHN.componentsflowgraph([0 1; 0 0], [[1], [1]], [[1], [1]])
         @test sort(flows) == [1 => 1, 2 => 1, 2 => 2]
         @test sort(subgraph) == [1 => 1, 2 => 1, 2 => 2]
 

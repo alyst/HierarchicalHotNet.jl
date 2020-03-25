@@ -61,9 +61,10 @@ condense(A::AbstractMatrix{T}, node_groups::AbstractPartition,
 
 condense(A::AbstractMatrix{T},
          row_groups::AbstractPartition, col_groups::AbstractPartition,
-         test::EdgeTest{T} = EdgeTest{T}()) where T =
+         test::EdgeTest{T} = EdgeTest{T}();
+         zerodiag::Bool = false) where T =
   condense!(similar(A, length(row_groups), length(col_groups)), A,
-            row_groups, col_groups, test)
+            row_groups, col_groups, test, zerodiag=zerodiag)
 
 """
 "Condenses" the matrix `A` by aggregating the values in the blocks of its
@@ -76,7 +77,8 @@ elements defined by `row_groups` and `col_groups`.
 """
 function condense!(B::AbstractMatrix{T}, A::AbstractMatrix{T},
                    row_groups::AbstractPartition, col_groups::AbstractPartition,
-                   test::EdgeTest{T} = EdgeTest{T}()) where T
+                   test::EdgeTest{T} = EdgeTest{T}();
+                   zerodiag::Bool = false) where T
     nrows = nelems(row_groups)
     ncols = nelems(col_groups)
     size(A) == (nrows, ncols) ||
@@ -85,21 +87,26 @@ function condense!(B::AbstractMatrix{T}, A::AbstractMatrix{T},
         throw(DimensionMismatch("B size ($(size(B))) and row/col group number ($(length(row_groups)), $(length(col_groups))) do not match."))
     @inbounds for (jj, cols) in enumerate(col_groups)
         Bjj = view(B, :, jj)
-        firstcol = true
         for j in cols
             Aj = view(A, :, j)
             for (ii, rows) in enumerate(row_groups)
-                Bij = ifelse(firstcol, defaultweight(test), Bjj[ii])
-                @simd for i in rows
-                    w = Aj[i]
-                    Bij = ifelse((isnothing(skipval(test)) || (w != skipval(test))) &&
-                                 ((!isnothing(skipval(test)) && (Bij == skipval(test))) ||
-                                  isweaker(Bij, w, rev=isreverse(test))),
-                                 w, Bij)
+                firstcol = j == first(cols)
+                if zerodiag && (ii == jj)
+                    firstcol && (Bjj[ii] = zero(T))
+                elseif firstcol && (length(rows) == 1)
+                    Bjj[ii] = Aj[first(rows)]
+                else
+                    Bij = ifelse(firstcol, defaultweight(test), Bjj[ii])
+                    @simd for i in rows
+                        w = Aj[i]
+                        Bij = ifelse((isnothing(skipval(test)) || (w != skipval(test))) &&
+                                     ((!isnothing(skipval(test)) && (Bij == skipval(test))) ||
+                                      isweaker(Bij, w, rev=isreverse(test))),
+                                     w, Bij)
+                    end
+                    Bjj[ii] = Bij
                 end
-                Bjj[ii] = Bij
             end
-            firstcol = false
         end
     end
     return B
@@ -107,5 +114,6 @@ end
 
 condense!(B::AbstractMatrix, A::AbstractMatrix{T},
           node_groups::AbstractPartition,
-          test::EdgeTest{T} = EdgeTest{T}()) where T =
-    condense!(B, A, node_groups, node_groups, test)
+          test::EdgeTest{T} = EdgeTest{T}();
+          zerodiag::Bool = false) where T =
+    condense!(B, A, node_groups, node_groups, test, zerodiag=zerodiag)

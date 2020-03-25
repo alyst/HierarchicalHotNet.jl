@@ -122,7 +122,7 @@ function componentsflowgraph!(
     # using pool actually slows it down
     mtxpool = NoopArrayPool{eltype(adjmtx)}()#arraypool(pools, eltype(adjmtx))
     compmtx = condense!(borrow!(mtxpool, (length(comps), length(comps))),
-                        adjmtx, comps, test)
+                        adjmtx, comps, test, zerodiag=true)
 
     # distribute sources and sinks into connected components
     ptnpool = objpool(pools, IndicesPartition)

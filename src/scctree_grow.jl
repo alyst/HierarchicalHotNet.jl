@@ -347,11 +347,7 @@ function scctree_bisect_subtree!(tree::SCCSeedling, adjmtx::AbstractMatrix{<:Int
 
     # build a graph of components relationships
     comps_adjmtx = condense!(borrow!(weightpool, (length(comps), length(comps))),
-                             adjmtx, comps)
-    # clear the diagonal
-    @inbounds for i in axes(comps_adjmtx, 1)
-        comps_adjmtx[i, i] = 0
-    end
+                             adjmtx, comps, zerodiag=true)
     # cluster it and attach the resulting subtree to the current root node
     verbose && @info("scctree_scc!(condensed components graph)")
     res = scctree_bisect_subtree!(tree, comps_adjmtx, comp_roots,
