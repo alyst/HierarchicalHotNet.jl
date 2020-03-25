@@ -1,23 +1,26 @@
-function conncomponents_graph(
-    tree::SCCTree, threshold::Number,
-    walkmatrix::AbstractMatrix;
+function export_flowgraph(
+    tree::SCCTree{T}, threshold::Number,
+    walkmatrix::AbstractMatrix,
+    sources::AbstractVector{<:Integer}, sinks::AbstractVector{<:Integer};
     orig_diedges::Union{AbstractDataFrame, Nothing} = nothing,
     vertices_stats::Union{AbstractDataFrame, Nothing} = nothing,
-    minsize::Integer=2,
+    flow_edges::Bool=false,
     pvalue_mw_max::Number=0.05,
     pvalue_fisher_max::Number=0.05,
     verbose::Bool=false
-)
+) where T
     nvertices(tree) == size(walkmatrix, 1) == size(walkmatrix, 2) ||
         throw(DimensionMismatch("Number of tree vertices ($(nvertices(tree))) doesn't match the walk matrix dimensions ($(size(walkmatrix)))"))
-    conncomps = cut(tree, threshold, minsize=1)
+    subgraph, flows, conncomps = flowgraph(tree, walkmatrix, sources, sinks,
+                                           EdgeTest{T}(threshold=threshold),
+                                           minsize=1)
     components_df = conncomponents_stats(conncomps, vertices_stats,
                                          average_weights=true,
                                          mannwhitney_tests=true)
     components_df[!, :is_used] .= true
     used_comps = IndicesPartition()
     for (i, comp) in enumerate(conncomps)
-        if (length(comp) >= minsize) &&
+        if (length(comp) >= 1 #= FIXME =#) &&
             (!hasproperty(components_df, :pvalue_walkweight_mw) ||
                 (components_df.pvalue_walkweight_mw[i] <= pvalue_mw_max)) #&&
            #(comp_stats_df.pvalue_walkweights_mw[i] <= pvalue_fisher_max)
@@ -27,117 +30,123 @@ function conncomponents_graph(
             components_df[i, :is_used] = false
         end
     end
+    components_df[!, :component0] = components_df[!, :component]
+    comp2new = fill(0, nrow(components_df))
     filter!(r -> r.is_used, components_df)
     components_df[!, :component] = 1:nrow(components_df)
+    comp2new[components_df.component0] .= components_df.component
+
     verbose && @info "$(nelems(used_comps)) vertices in $(length(used_comps)) connected components"
+    vertex2pos = fill(0, nvertices(tree))
+    vertex2pos[used_comps.elems] = 1:nelems(used_comps)
     vertices_df = DataFrame(vertex = used_comps.elems)
     vertices_df[!, :component] .= 0
     for i in eachindex(used_comps)
         vertices_df[partrange(used_comps, i), :component] .= i
     end
     @assert all(>(0), vertices_df.component)
+    vertices_df[!, :is_source] .= false
+    vertices_df[!, :is_sink] .= false
+    @inbounds for src in sources
+        pos = vertex2pos[src]
+        (pos > 0) && (vertices_df[pos, :is_source] = true)
+    end
+    @inbounds for snk in sinks
+        pos = vertex2pos[snk]
+        (pos > 0) && (vertices_df[pos, :is_sink] = true)
+    end
     if !isnothing(vertices_stats)
         vertices_df = join(vertices_df, vertex_info, on=:vertex, kind=:left)
     end
-    vertices_df[!, :covertex] .= vertices_df[!, :vertex]
-    # merge together gene vertices and their sinks/sources mirrors
-    covertices_df = by(vertices_df, [:component, :covertex]) do covertex_df
-        vertices = sort!(covertex_df.vertex)
-        res = DataFrame(
-            vertices = join(vertices, ' '),
-            nvertices = length(vertices),
-            is_entry = any(covertex_df.is_entry),
-            is_exit = any(covertex_df.is_exit),
-            is_entry_ref = any(covertex_df.is_entry_ref),
-            is_exit_ref = any(covertex_df.is_exit_ref),
-            n_entries = sum(covertex_df.is_entry),
-            n_exits = sum(covertex_df.is_exit)
-        )
-        if hasproperty(covertex_df, :weight)
-            res.weight = maximum(covertex_df.weight)
-        end
-        if hasproperty(covertex_df, :walkweight)
-            res.walkweight = maximum(covertex_df.walkweight)
-        end
-        return res
-    end
 
-    edges_matrix = walkmatrix[used_comps.elems, used_comps.elems]
+    filter!(e -> comp2new[e[2][1]] > 0 && comp2new[e[2][2]] > 0, subgraph)
+    filter!(e -> comp2new[e[2][1]] > 0 && comp2new[e[2][2]] > 0, flows)
     diedges_df = DataFrame(source = Vector{Int}(),
                            target = Vector{Int}(),
-                           component = Vector{Int}(),
-                           is_tunnel = Vector{Bool}(),
                            walkweight = Vector{Float64}(),
                            walkweight_rev = Vector{Float64}())
-    for i in axes(edges_matrix, 1), j in axes(edges_matrix, 2)
-        (vertices_df.component[i] == vertices_df.component[j]) || continue
-        wj2i = edges_matrix[i, j]
-        (wj2i >= threshold) || continue
-        push!(diedges_df, (source = used_comps.elems[j],
-                           target = used_comps.elems[i],
-                           component = vertices_df.component[j],
-                           is_tunnel = vertices_df.is_entry[j] && vertices_df.is_exit[i],
+    flows_df = copy(diedges_df)
+    for ((src, trg), (srccomp, trgcomp)) in subgraph
+        (comp2new[srccomp] != 0) && (comp2new[trgcomp] != 0) || continue
+        wj2i = walkmatrix[trg, src]
+        @assert wj2i >= threshold
+        push!(diedges_df, (source = src,
+                           target = trg,
                            walkweight = wj2i,
-                           walkweight_rev = edges_matrix[j, i]))
+                           walkweight_rev = walkmatrix[src, trg]))
     end
+
+    flows_df.flow = Vector{String}()
+    for ((src, trg), (srccomp, trgcomp)) in flows
+        (comp2new[srccomp] != 0) && (comp2new[trgcomp] != 0) || continue
+        push!(flows_df, (source = src,
+                         target = trg,
+                         walkweight = threshold,
+                         walkweight_rev = threshold,
+                         flow = srccomp == trgcomp ? "loop" : "linear"))
+    end
+    source_stats_df = by(flows_df, :source) do outedges_df
+        sinks = sort!(unique(outedges_df.target))
+        sourcesinks = sort!(unique!(outedges_df[outedges_df.flow .== "circular", :target]))
+        DataFrame(flows_to = isempty(sinks) ? missing : join(sinks, ' '),
+                  nflows_to = length(sinks),
+                  loops_through = isempty(sourcesinks) ? missing : join(sourcesinks, ' '),
+                  nloops_through = length(sourcesinks))
+    end
+    target_stats_df = by(flows_df, :target) do inedges_df
+        sources = sort!(unique(inedges_df.source))
+        DataFrame(flows_from = isempty(sources) ? missing : join(sources, ' '),
+                  nflows_from = length(sources))
+    end
+    diedges_df.flow = missings(String, nrow(diedges_df))
+    append!(diedges_df, flows_df)
     if !isnothing(orig_diedges)
         diedges_df = join(diedges_df, orig_diedges, on=[:source, :target], kind=:left)
         diedges_df[!, :is_original] .= .!ismissing.(coalesce.(diedges_df[!, :weight]))
     end
-    diedges_df = join(diedges_df, rename!(vertices_df[!, [:vertex, :covertex]],
-                                          :vertex=>:source, :covertex=>:cosource),
-                      on=:source, kind=:left)
-    diedges_df = join(diedges_df, rename!(vertices_df[!, [:vertex, :covertex]],
-                                          :vertex=>:target, :covertex=>:cotarget),
-                      on=:target, kind=:left)
-    cosource_stats_df = by(diedges_df, :cosource) do codiedges_df
-        cotargets = sort!(unique!(codiedges_df[codiedges_df.is_tunnel, :cotarget]))
-        DataFrame(tunnels_to = isempty(cotargets) ? missing : join(cotargets, ' '),
-                  ntunnels_to = length(cotargets))
-    end
-    cotarget_stats_df = by(diedges_df, :cotarget) do codiedges_df
-        cosources = sort!(unique!(codiedges_df[codiedges_df.is_tunnel, :cosource]))
-        DataFrame(tunnels_from = isempty(cosources) ? missing : join(cosources, ' '),
-                  ntunnels_from = length(cosources))
-    end
-    covertices_df = join(covertices_df, rename!(cosource_stats_df, :cosource => :covertex), on=:covertex, kind=:left)
-    covertices_df = join(covertices_df, rename!(cotarget_stats_df, :cotarget => :covertex), on=:covertex, kind=:left)
-    diedges_fwd_df = filter(r -> r.walkweight >= r.walkweight_rev, diedges_df)
-    diedges_fwd_df[!, :is_reverse] .= false
-    diedges_rev_df = filter(r -> r.walkweight < r.walkweight_rev, diedges_df)
-    diedges_rev_df[!, :is_reverse] .= true
-    rename!(diedges_rev_df, :source => :target, :cosource => :cotarget,
-                            :target => :source, :cotarget => :cosource)
-    coedges_df = by(vcat(diedges_fwd_df, diedges_rev_df),
-                    [:component, :cosource, :cotarget]) do coedge_df
+    used_vertices = union!(Set(diedges_df.source), Set(diedges_df.target))
+    filter!(r -> r.vertex ∈ used_vertices, vertices_df)
+    vertices_df = join(vertices_df, rename!(source_stats_df, :source => :vertex),
+                       on=:vertex, kind=:left)
+    vertices_df = join(vertices_df, rename!(target_stats_df, :target => :vertex),
+                       on=:vertex, kind=:left)
+    outedges_df = filter(r -> r.walkweight >= r.walkweight_rev, diedges_df)
+    outedges_df[!, :is_reverse] .= false
+    inedges_df = filter(r -> r.walkweight < r.walkweight_rev, diedges_df)
+    inedges_df[!, :is_reverse] .= true
+    rename!(inedges_df, :source => :target, :target => :source)
+    edges_df = by(vcat(outedges_df, inedges_df),
+                  [:source, :target]) do edge_df
         res = DataFrame(
-            has_tunnel = any(coedge_df.is_tunnel),
-            has_walk = !all(coedge_df.is_tunnel),
-            walkweight = any(r -> !r.is_tunnel && !r.is_reverse, eachrow(coedge_df)) ?
-                    maximum(coedge_df[.!coedge_df.is_tunnel .& .!coedge_df.is_reverse, :walkweight]) : missing,
-            walkweight_rev = any(r -> !r.is_tunnel && r.is_reverse, eachrow(coedge_df)) ?
-                  maximum(coedge_df[.!coedge_df.is_tunnel .& coedge_df.is_reverse, :walkweight]) : missing
+            has_flow = !all(ismissing, edge_df.flow),
+            has_walk = any(ismissing, edge_df.flow),
+            walkweight = any(r -> ismissing(r.flow) && !r.is_reverse, eachrow(edge_df)) ?
+                    maximum(edge_df[ismissing.(edge_df.flow) .& .!edge_df.is_reverse, :walkweight]) : missing,
+            walkweight_rev = any(r -> ismissing(r.flow) && r.is_reverse, eachrow(edge_df)) ?
+                    maximum(edge_df[ismissing.(edge_df.flow) .& edge_df.is_reverse, :walkweight]) : missing
         )
-        if hasproperty(coedge_df, :is_original)
-            res[!, :has_original] .= any(r -> r.is_original && !r.is_reverse, eachrow(coedge_df))
-            res[!, :has_original_rev] .= any(r -> r.is_original && r.is_reverse, eachrow(coedge_df))
+        if hasproperty(edge_df, :is_original)
+            res[!, :has_original] .= any(r -> r.is_original && !r.is_reverse, eachrow(edge_df))
+            res[!, :has_original_rev] .= any(r -> r.is_original && r.is_reverse, eachrow(edge_df))
         end
-        if hasproperty(coedge_df, :diedge_type)
-            orig1st = findfirst(r -> r.is_original && !r.is_reverse, eachrow(coedge_df))
+        if hasproperty(edge_df, :diedge_type)
+            orig1st = findfirst(r -> r.is_original && !r.is_reverse, eachrow(edge_df))
             res[!, :has_original] .= !isnothing(orig1st)
-            res[!, :target_type] .= isnothing(orig1st) ? missing : coedge_df.diedge_type[orig1st]
-            if hasproperty(coedge_df, :interaction_type)
-                res[!, :interaction_type] .= isnothing(orig1st) ? missing : coedge_df.interaction_type[orig1st]
+            res[!, :target_type] .= isnothing(orig1st) ? missing : edge_df.diedge_type[orig1st]
+            if hasproperty(edge_df, :interaction_type)
+                res[!, :interaction_type] .= isnothing(orig1st) ? missing : edge_df.interaction_type[orig1st]
             end
-            orig1st_rev = findfirst(r -> r.is_original && r.is_reverse, eachrow(coedge_df))
+            orig1st_rev = findfirst(r -> r.is_original && r.is_reverse, eachrow(edge_df))
             res[!, :has_original_rev] .= !isnothing(orig1st_rev)
-            res[!, :source_type] .= isnothing(orig1st_rev) ? missing : coedge_df.diedge_type[orig1st_rev]
+            res[!, :source_type] .= isnothing(orig1st_rev) ? missing : edge_df.diedge_type[orig1st_rev]
+        end
+        if !flow_edges && !res.has_walk[1]
+            return filter!(r -> false, res) # pure flows are not exported
         end
         return res
     end
     return (components = components_df,
             vertices = vertices_df,
-            covertices = covertices_df,
             diedges = diedges_df,
-            coedges = coedges_df)
+            edges = edges_df)
 end
