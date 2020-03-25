@@ -107,3 +107,34 @@ borrow!(::Type{Vector{T}}, ::Nothing, size::NTuple{N}) where {T, N} =
 
 # do nothing
 release!(::Nothing, obj::Any) = ()
+
+"""
+Pool of object pools.
+Manages `ObjectPool` objects for different types.
+"""
+struct ObjectPools
+    typepools::Dict{Type, ObjectPool}
+    default_borrow_limit::Int;
+
+    ObjectPools(default_borrow_limit::Integer = 0) =
+        new(Dict{Type, ObjectPool}(), default_borrow_limit)
+end
+
+objpool(pools::ObjectPools, ::Type{T};
+        borrow_limit::Union{Integer, Nothing} = nothing) where T =
+    get!(() -> ObjectPool{T}(isnothing(borrow_limit) ?
+                             pools.default_borrow_limit : borrow_limit),
+        pools.typepools, T)::ObjectPool{T}
+
+objpool(::Nothing, ::Type{T};
+        borrow_limit::Union{Integer, Nothing} = nothing) where T =
+    NoopObjectPool{T}()
+
+arraypool(pools::Union{ObjectPools, Nothing}, type::Type{T};
+          kwargs...) where T =
+    objpool(pools, Vector{T}, kwargs...)
+
+Base.getindex(pools::ObjectPools, type::Type; kwargs...) =
+    objpool(pools, type; kwargs...)
+
+Base.haskey(pools::ObjectPools, type::Type) = haskey(pools.typepools, type)

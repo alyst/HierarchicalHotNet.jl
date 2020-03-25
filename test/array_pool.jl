@@ -76,3 +76,22 @@ end
         @test_throws MethodError HHN.release!(strnopool, Int[])
     end
 end
+
+@testset "ObjectPools" begin
+    pools = HHN.ObjectPools()
+    @test pools.default_borrow_limit == 0
+    @test !haskey(pools, Vector{Int})
+    intpool = @inferred pools[Vector{Int}]
+    @test intpool isa HHN.ArrayPool{Int}
+    @test haskey(pools, Vector{Int})
+    intpool2 = pools[Vector{Int}]
+    @test intpool2 === intpool
+    intpool3 = HHN.arraypool(pools, Int)
+    @test intpool3 === intpool
+
+    floatpool = @inferred pools[Vector{Float64}]
+    @test floatpool isa HHN.ArrayPool{Float64}
+
+    nointpool = @inferred HHN.arraypool(nothing, Int)
+    @test nointpool isa HHN.NoopArrayPool{Int}
+end
