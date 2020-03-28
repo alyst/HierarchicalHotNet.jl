@@ -18,17 +18,16 @@ function export_flowgraph(
     components_df = conncomponents_stats(conncomps, vertices_stats,
                                          average_weights=true,
                                          mannwhitney_tests=true)
-    components_df[!, :is_used] .= true
+    components_df[!, :is_used] .= false
+    for ((_, _), (a, b)) in subgraph
+        components_df[a, :is_used] = true
+        components_df[b, :is_used] = true
+    end
     used_comps = IndicesPartition()
     for (i, comp) in enumerate(conncomps)
-        if (length(comp) >= 1 #= FIXME =#) &&
-            (!hasproperty(components_df, :pvalue_walkweight_mw) ||
-                (components_df.pvalue_walkweight_mw[i] <= pvalue_mw_max)) #&&
-           #(comp_stats_df.pvalue_walkweights_mw[i] <= pvalue_fisher_max)
+        if components_df[i, :is_used]
             append!(used_comps.elems, comp)
             closepart!(used_comps)
-        else
-            components_df[i, :is_used] = false
         end
     end
     components_df[!, :component0] = components_df[!, :component]
