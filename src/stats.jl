@@ -265,7 +265,7 @@ const treecut_metrics = [
     :ncomponents_signif_mw, :ncomponents_signif_fisher,
     :components_signif_sizesum_mw, :components_signif_sizesum_fisher,
     :maxcomponent_size, :log10_maxcomponent_size,
-    :nsources, :nsinks, :nflows,
+    :topn_nsources, :topn_nsinks, :nflows,
     :topn_components_sizesum, :log10_topn_components_sizesum]
 
 function bin_treecut_stats(
