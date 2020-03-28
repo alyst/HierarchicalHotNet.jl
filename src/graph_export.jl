@@ -32,7 +32,8 @@ function export_flowgraph(
     end
     components_df[!, :component0] = components_df[!, :component]
     comp2new = fill(0, nrow(components_df))
-    filter!(r -> r.is_used, components_df)
+    # FIXME what kind of filtering?, should it be before flowgraph()?
+    #filter!(r -> r.is_used, components_df)
     components_df[!, :component] = 1:nrow(components_df)
     comp2new[components_df.component0] .= components_df.component
 
@@ -56,7 +57,7 @@ function export_flowgraph(
         (pos > 0) && (vertices_df[pos, :is_sink] = true)
     end
     if !isnothing(vertices_stats)
-        vertices_df = join(vertices_df, vertex_info, on=:vertex, kind=:left)
+        vertices_df = join(vertices_df, vertices_stats, on=:vertex, kind=:left)
     end
 
     filter!(e -> comp2new[e[2][1]] > 0 && comp2new[e[2][2]] > 0, subgraph)
@@ -77,28 +78,35 @@ function export_flowgraph(
     end
 
     flows_df.flow = Vector{String}()
-    for ((src, trg), (srccomp, trgcomp)) in flows
+    flows_df.flow_length = Vector{Int}()
+    for ((src, trg), (srccomp, trgcomp), len) in flows
         (comp2new[srccomp] != 0) && (comp2new[trgcomp] != 0) || continue
         push!(flows_df, (source = src,
                          target = trg,
                          walkweight = threshold,
                          walkweight_rev = threshold,
-                         flow = srccomp == trgcomp ? "loop" : "linear"))
+                         flow = srccomp == trgcomp ? "loop" : "linear",
+                         flow_length = len))
     end
     source_stats_df = by(flows_df, :source) do outedges_df
-        sinks = sort!(unique(outedges_df.target))
+        sinks = sort!(unique(collect(zip(outedges_df.flow_length,
+                                         outedges_df.target))))
         sourcesinks = sort!(unique!(outedges_df[outedges_df.flow .== "circular", :target]))
-        DataFrame(flows_to = isempty(sinks) ? missing : join(sinks, ' '),
+        DataFrame(flows_to = isempty(sinks) ? missing :
+                              join(string.(last.(sinks), '(', first.(sinks),')'), ' '),
                   nflows_to = length(sinks),
                   loops_through = isempty(sourcesinks) ? missing : join(sourcesinks, ' '),
                   nloops_through = length(sourcesinks))
     end
     target_stats_df = by(flows_df, :target) do inedges_df
-        sources = sort!(unique(inedges_df.source))
-        DataFrame(flows_from = isempty(sources) ? missing : join(sources, ' '),
+        sources = sort!(unique(collect(zip(inedges_df.flow_length,
+                                           inedges_df.source))))
+        DataFrame(flows_from = isempty(sources) ? missing :
+                               join(string.(last.(sources), '(', first.(sources),')'), ' '),
                   nflows_from = length(sources))
     end
     diedges_df.flow = missings(String, nrow(diedges_df))
+    diedges_df.flow_length = missings(Int, nrow(diedges_df))
     append!(diedges_df, flows_df)
     if !isnothing(orig_diedges)
         diedges_df = join(diedges_df, orig_diedges, on=[:source, :target], kind=:left)
@@ -115,8 +123,8 @@ function export_flowgraph(
     inedges_df = filter(r -> r.walkweight < r.walkweight_rev, diedges_df)
     inedges_df[!, :is_reverse] .= true
     rename!(inedges_df, :source => :target, :target => :source)
-    edges_df = by(vcat(outedges_df, inedges_df),
-                  [:source, :target]) do edge_df
+
+    function combine_diedges(edge_df::AbstractDataFrame)
         res = DataFrame(
             has_flow = !all(ismissing, edge_df.flow),
             has_walk = any(ismissing, edge_df.flow),
@@ -140,10 +148,20 @@ function export_flowgraph(
             res[!, :has_original_rev] .= !isnothing(orig1st_rev)
             res[!, :source_type] .= isnothing(orig1st_rev) ? missing : edge_df.diedge_type[orig1st_rev]
         end
-        if !flow_edges && !res.has_walk[1]
+        if !flow_edges && !any(res.has_walk)
             return filter!(r -> false, res) # pure flows are not exported
         end
         return res
+    end
+
+    if nrow(outedges_df) + nrow(inedges_df) > 0
+        edges_df = by(combine_diedges, vcat(outedges_df, inedges_df),
+                      [:source, :target])
+    else
+        # workaround: add missing columns to the empty frame
+        edges_df = combine_diedges(outedges_df)
+        edges_df.source = Vector{Int}()
+        edges_df.target = Vector{Int}()
     end
     return (components = components_df,
             vertices = vertices_df,

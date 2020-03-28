@@ -1,9 +1,11 @@
 const Diedge = Pair{Int, Int}               # directed edge
+const Flow = Tuple{Diedge, Int}             # flow: source=>target, length
 const CompDiedge = Tuple{Diedge, Diedge}    # directed edge from one component to the other
+const CompFlow = Tuple{Diedge, Diedge, Int} # directed edge from one component to the other
 
 function componentsflowgraph!(
     subgraph::Union{AbstractVector{Diedge}, Nothing},
-    flows::AbstractVector{Diedge},
+    flows::AbstractVector{Flow},
     adjmtx::AbstractMatrix{T},
     compsources::AbstractVector{<:AbstractVector},
     compsinks::AbstractVector{<:AbstractVector},
@@ -16,10 +18,10 @@ function componentsflowgraph!(
     nv == length(compsources) || throw(DimensionMismatch("compsources length ($(length(compsources))) doesn't match vertex count ($(size(adjmtx, 1)))"))
     nv == length(compsinks) || throw(DimensionMismatch("compsinks length ($(length(compsinks))) doesn't match vertex count ($(size(adjmtx, 1)))"))
 
-    setpool = objpool(pools, Set{Int})
+    setpool = objpool(pools, Dict{Int, Int})
     boolpool = arraypool(pools, Bool)
     visited = fill!(borrow!(boolpool, nv), false)
-    reachablepool = arraypool(pools, Union{Set{Int}, Nothing})
+    reachablepool = arraypool(pools, Union{Dict{Int, Int}, Nothing})
     reachable = fill!(borrow!(reachablepool, nv), nothing) # which sinks are reachable from this vertex
     dfspool = arraypool(pools, DFSState)
     dfs_stack = borrow!(dfspool)
@@ -31,7 +33,7 @@ function componentsflowgraph!(
         push!(dfs_stack, (v, 0))
         @assert isnothing(reachable[v])
         if !ispartempty(compsinks, v) # initialize reachable list of not-yet-visited vertices
-            reachable[v] = push!(empty!(borrow!(setpool)), v)
+            reachable[v] = setindex!(empty!(borrow!(setpool)), 1, v)
         end
         while !isempty(dfs_stack)
             v, edgeitstate = dfs_stack[end]
@@ -49,9 +51,17 @@ function componentsflowgraph!(
                     # i should not be in the current dfs stack
                     # append flow to the reachable vertex to the used_edges list
                     if isnothing(reachable[v])
-                        reachable[v] = copy!(borrow!(setpool), reachable[i])
+                        reachable[v] = vsinks = sizehint!(empty!(borrow!(setpool)), length(reachable[i]))
+                        for (v, n) in reachable[i]
+                            vsinks[v] = n + 1
+                        end
                     else
-                        union!(reachable[v], reachable[i])
+                        vsinks = reachable[v]
+                        for (v, n) in reachable[i]
+                            if get(vsinks, v, nv + 1) > n + 1
+                                vsinks[v] = n + 1
+                            end
+                        end
                     end
                     !isnothing(subgraph) && push!(subgraph, (v => i))
                 elseif !visited[i]
@@ -64,13 +74,13 @@ function componentsflowgraph!(
             if u > 0 # follow v->u Diedge
                 push!(dfs_stack, (u, 0))
                 @assert isnothing(reachable[u])
-                ispartempty(compsinks, u) || (reachable[u] = push!(empty!(borrow!(setpool)), u))
+                ispartempty(compsinks, u) || (reachable[u] = setindex!(empty!(borrow!(setpool)), 1, u))
             else # backtrack from v
                 pop!(dfs_stack)
                 if !ispartempty(compsources, v)
                     if !isnothing(reachable[v])
-                        for dest in reachable[v]
-                            push!(flows, (v => dest))
+                        for (dest, n) in reachable[v]
+                            push!(flows, (v => dest, n))
                         end
                         # self-loop
                         !ispartempty(compsinks, v) && !isnothing(subgraph) && push!(subgraph, v => v)
@@ -81,9 +91,17 @@ function componentsflowgraph!(
                     if !isnothing(reachable[v])
                         !isnothing(subgraph) && push!(subgraph, prev => v)
                         if isnothing(reachable[prev])
-                            reachable[prev] = copy!(borrow!(setpool), reachable[v])
+                            reachable[prev] = prevsinks = sizehint!(empty!(borrow!(setpool)), length(reachable[v]))
+                            for (vv, n) in reachable[v]
+                                prevsinks[vv] = n + 1
+                            end
                         else
-                            union!(reachable[prev], reachable[v])
+                            prevsinks = reachable[prev]
+                            for (vv, n) in reachable[v]
+                                if get(prevsinks, vv, nv + 1) > n + 1
+                                    prevsinks[vv] = n + 1
+                                end
+                            end
                         end
                     end
                 end
@@ -105,12 +123,12 @@ componentsflowgraph(adjmtx::AbstractMatrix{T},
         test::EdgeTest{T} = EdgeTest{T}(),
         pools::Union{ObjectPools, Nothing} = nothing
 ) where T =
-    componentsflowgraph!(Vector{Diedge}(), Vector{Diedge}(),
+    componentsflowgraph!(Vector{Diedge}(), Vector{Flow}(),
             adjmtx, compsources, compsinks, test, pools)
 
 function componentsflowgraph!(
     compgraph::Union{AbstractVector{Diedge}, Nothing},
-    compflows::AbstractVector{Diedge},
+    compflows::AbstractVector{Flow},
     compsources::IndicesPartition, compsinks::IndicesPartition,
     comps::IndicesPartition,
     adjmtx::AbstractMatrix,
@@ -120,7 +138,7 @@ function componentsflowgraph!(
 )
     # flow graph between connected components
     # using pool actually slows it down
-    mtxpool = NoopArrayPool{eltype(adjmtx)}()#arraypool(pools, eltype(adjmtx))
+    mtxpool = arraypool(pools, eltype(adjmtx))#NoopArrayPool{eltype(adjmtx)}()#
     compmtx = condense!(borrow!(mtxpool, (length(comps), length(comps))),
                         adjmtx, comps, test, zerodiag=true)
 
@@ -153,9 +171,9 @@ end
 # expand components flows and subgraph into vertex flows and subgraph
 function expand_componentsflowgraph!(
     subgraph::Union{AbstractVector{CompDiedge}, Nothing},
-    flows::AbstractVector{CompDiedge},
+    flows::AbstractVector{CompFlow},
     compgraph::Union{AbstractVector{Diedge}, Nothing},
-    compflows::AbstractVector{Diedge},
+    compflows::AbstractVector{Flow},
     compsources::IndicesPartition, compsinks::IndicesPartition,
     comps::IndicesPartition,
     adjmtx::AbstractMatrix,
@@ -165,9 +183,9 @@ function expand_componentsflowgraph!(
 )
     # expand component flows into source/sink node flows
     empty!(flows)
-    @inbounds for (i, j) in compflows
+    @inbounds for ((i, j), n) in compflows
         for src in compsources[i], snk in compsinks[j]
-            push!(flows, (src => snk, i => j))
+            push!(flows, (src => snk, i => j, n))
         end
     end
 
@@ -211,15 +229,16 @@ end
 
 function flowgraph!(
     subgraph::Union{AbstractVector{CompDiedge}, Nothing},
-    flows::AbstractVector{CompDiedge},
+    flows::AbstractVector{CompFlow},
     comps::IndicesPartition,
     adjmtx::AbstractMatrix,
     sources::AbstractVector{Int}, sinks::AbstractVector{Int},
     test::EdgeTest,
     pools::Union{ObjectPools, Nothing} = nothing
 )
+    flowpool = arraypool(pools, Flow)
+    compflows = borrow!(flowpool)
     edgepool = arraypool(pools, Diedge)
-    compflows = borrow!(edgepool)
     compgraph = !isnothing(subgraph) ? borrow!(edgepool) : nothing
 
     ptnpool = objpool(pools, IndicesPartition)
@@ -236,14 +255,14 @@ function flowgraph!(
     release!(ptnpool, compsources)
 
     !isnothing(compgraph) && release!(edgepool, compgraph)
-    release!(edgepool, compflows)
+    release!(flowpool, compflows)
 
     return subgraph, flows, comps
 end
 
 flowgraph!(
     subgraph::Union{AbstractVector{CompDiedge}, Nothing},
-    flows::AbstractVector{CompDiedge},
+    flows::AbstractVector{CompFlow},
     comps::IndicesPartition,
     tree::SCCTree, adjmtx::AbstractMatrix,
     sources::AbstractVector{Int}, sinks::AbstractVector{Int},
@@ -256,7 +275,7 @@ flowgraph(tree::SCCTree, adjmtx::AbstractMatrix,
           sources::AbstractVector{Int}, sinks::AbstractVector{Int},
           test::EdgeTest,
           pools::Union{ObjectPools, Nothing} = nothing
-) = flowgraph!(Vector{CompDiedge}(), Vector{CompDiedge}(), IndicesPartition(),
+) = flowgraph!(Vector{CompDiedge}(), Vector{CompFlow}(), IndicesPartition(),
                tree, adjmtx, sources, sinks, test, pools)
 
 function nflows(
@@ -266,24 +285,29 @@ function nflows(
    test::EdgeTest,
    pools::Union{ObjectPools, Nothing} = nothing
 )
-   edgepool = arraypool(pools, Diedge)
-   compflows = borrow!(edgepool)
+   flowpool = arraypool(pools, Flow)
+   compflows = borrow!(flowpool)
 
    ptnpool = objpool(pools, IndicesPartition)
    compsources = borrow!(ptnpool)
    compsinks = borrow!(ptnpool)
    componentsflowgraph!(nothing, compflows, compsources, compsinks, comps,
                         adjmtx, sources, sinks, test, pools)
-   res = 0
-   @inbounds for (compi, compj) in compflows
-       res += length(compsources[compi])*length(compsinks[compj])
+   nvtxflows = 0
+   flowlen = 0
+   compflowlen = 0
+   @inbounds for ((compi, compj), len) in compflows
+       npairs = length(compsources[compi])*length(compsinks[compj])
+       nvtxflows += npairs
+       flowlen += npairs * len
+       compflowlen += len
    end
 
-   release!(edgepool, compflows)
+   release!(flowpool, compflows)
    release!(ptnpool, compsinks)
    release!(ptnpool, compsources)
 
-   return res
+   return (nvtxflows, length(compflows), flowlen, compflowlen)
 end
 
 function nflows(
