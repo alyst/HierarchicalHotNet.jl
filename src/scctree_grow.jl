@@ -76,7 +76,8 @@ nvertices(tree::SCCSeedling) = length(tree.vertexnodes)
 # of unique values present in `arr`.
 function sortediweights(tree::SCCSeedling{T, I}, arr::AbstractArray{I},
                         superset::AbstractVector) where {T, I}
-    iweights = empty!(borrow!(arraypool(tree.pools, I), length(superset)))
+    weightpool = NoopArrayPool{I}()#arraypool(tree.pools, I)
+    iweights = empty!(borrow!(weightpool, length(superset)))
     # generate the unique stamp
     stamp = (tree.stamp += 1)
     # stamp all observed values
