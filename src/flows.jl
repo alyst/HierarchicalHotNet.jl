@@ -141,6 +141,10 @@ function componentsflowgraph!(
     mtxpool = arraypool(pools, eltype(adjmtx))#NoopArrayPool{eltype(adjmtx)}()#
     compmtx = condense!(borrow!(mtxpool, (length(comps), length(comps))),
                         adjmtx, comps, test, zerodiag=true)
+    # restore the diagonal (SCCs result in self-loops)
+    @inbounds for i in axes(compmtx, 1)
+        compmtx[i, i] = test.threshold
+    end
 
     # distribute sources and sinks into connected components
     ptnpool = objpool(pools, IndicesPartition)
