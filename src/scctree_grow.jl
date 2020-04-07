@@ -233,8 +233,10 @@ function scctree_bisect_subtree!(tree::SCCSeedling, adjmtx::AbstractMatrix{<:Int
     verbose && @info "scctree_bisect_range!($(subtree) nodes, subtree_threshold=$subtree_threshold, nodes_threshold=$nodes_threshold)"
     weights = sortediweights(tree, adjmtx, parent_weights)
     intpool = arraypool(tree.pools, Int)
+    I = iweighttype(tree)
+    weightpool = arraypool(tree.pools, I)
     # using pool actually slows it down
-    weightpool = NoopArrayPool{iweighttype(tree)}()#arraypool(tree.pools, iweighttype(tree))
+    matrixpool = NoopArrayPool{I}()#weightpool
     # release!(tree.iweights_pool, weights) should be called before returning from this function
     if isempty(weights) # (condensed) graph with no edges
         # i.e. the original graph has multple connected components
@@ -269,7 +271,6 @@ function scctree_bisect_subtree!(tree::SCCSeedling, adjmtx::AbstractMatrix{<:Int
     @assert 1 <= nodes_lev <= length(weights) "nodes_threshold=$nodes_threshold outside of ($(first(weights))..$(last(weights)))"
     verbose && @info("subtree_threshold=weights[$subtree_lev]=$(weights[subtree_lev]), nodes_threshold=weights[$nodes_lev]=$(weights[nodes_lev]) of $weights")
 
-    I = iweighttype(tree)
     nnodes = length(subtree)
     # initialize with trivial components
     comps = partition(tree, nnodes, ngroups=nnodes)
@@ -346,14 +347,14 @@ function scctree_bisect_subtree!(tree::SCCSeedling, adjmtx::AbstractMatrix{<:Int
     release!(intpool, comp_subtree)
 
     # build a graph of components relationships
-    comps_adjmtx = condense!(borrow!(weightpool, (length(comps), length(comps))),
+    comps_adjmtx = condense!(borrow!(matrixpool, (length(comps), length(comps))),
                              adjmtx, comps, zerodiag=true)
     # cluster it and attach the resulting subtree to the current root node
     verbose && @info("scctree_scc!(condensed components graph)")
     res = scctree_bisect_subtree!(tree, comps_adjmtx, comp_roots,
                                   subtree_threshold, bisect_threshold,
                                   weights, verbose=verbose)
-    release!(weightpool, comps_adjmtx)
+    release!(matrixpool, comps_adjmtx)
     release!(weightpool, weights)
     release!(intpool, comp_roots)
     release!(tree, comps)
