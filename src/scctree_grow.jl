@@ -71,13 +71,19 @@ end
 
 nvertices(tree::SCCSeedling) = length(tree.vertexnodes)
 
+# using pool seems slower
+weightpool(tree::SCCSeedling{T, I}) where {T, I} =
+    NoopArrayPool{I}()#arraypool(tree.pools, I)
+
+matrixpool(tree::SCCSeedling{T, I}) where {T, I} =
+    NoopArrayPool{I}()#arraypool(tree.pools, I)
+
 # Gets the sorted unique values observed in `arr`.
 # To improve the performance, the method uses `superset`, a sorted superset
 # of unique values present in `arr`.
 function sortediweights(tree::SCCSeedling{T, I}, arr::AbstractArray{I},
                         superset::AbstractVector) where {T, I}
-    weightpool = NoopArrayPool{I}()#arraypool(tree.pools, I)
-    iweights = empty!(borrow!(weightpool, length(superset)))
+    iweights = empty!(borrow!(weightpool(tree), length(superset)))
     # generate the unique stamp
     stamp = (tree.stamp += 1)
     # stamp all observed values
@@ -235,9 +241,8 @@ function scctree_bisect_subtree!(tree::SCCSeedling, adjmtx::AbstractMatrix{<:Int
     weights = sortediweights(tree, adjmtx, parent_weights)
     intpool = arraypool(tree.pools, Int)
     I = iweighttype(tree)
-    weightpool = arraypool(tree.pools, I)
-    # using pool actually slows it down
-    matrixpool = NoopArrayPool{I}()#weightpool
+    wpool = weightpool(tree)
+    mtxpool = matrixpool(tree)
     # release!(tree.iweights_pool, weights) should be called before returning from this function
     if isempty(weights) # (condensed) graph with no edges
         # i.e. the original graph has multple connected components
@@ -245,7 +250,7 @@ function scctree_bisect_subtree!(tree::SCCSeedling, adjmtx::AbstractMatrix{<:Int
         verbose && @info("No edges, creating the root node to join connected components")
         onecomp = partition(tree, length(subtree), ngroups=1)
         append_components!(tree, onecomp, subtree, subtree_threshold)
-        release!(weightpool, weights)
+        release!(wpool, weights)
         release!(tree, onecomp)
         return length(tree.nodes)
     end
@@ -296,7 +301,7 @@ function scctree_bisect_subtree!(tree::SCCSeedling, adjmtx::AbstractMatrix{<:Int
             verbose && @info("Creating a node for subtree $subtree at subtree_lev=$subtree_lev, nodes_lev=$nodes_lev")
             # reset to a single component
             append_components!(tree, reset!(comps, ngroups=1), subtree, subtree_threshold)
-            release!(weightpool, weights)
+            release!(wpool, weights)
             release!(tree, comps)
             return length(tree.nodes)
         end
@@ -348,15 +353,15 @@ function scctree_bisect_subtree!(tree::SCCSeedling, adjmtx::AbstractMatrix{<:Int
     release!(intpool, comp_subtree)
 
     # build a graph of components relationships
-    comps_adjmtx = condense!(borrow!(matrixpool, (length(comps), length(comps))),
+    comps_adjmtx = condense!(borrow!(mtxpool, (length(comps), length(comps))),
                              adjmtx, comps, zerodiag=true)
     # cluster it and attach the resulting subtree to the current root node
     verbose && @info("scctree_scc!(condensed components graph)")
     res = scctree_bisect_subtree!(tree, comps_adjmtx, comp_roots,
                                   subtree_threshold, bisect_threshold,
                                   weights, verbose=verbose)
-    release!(matrixpool, comps_adjmtx)
-    release!(weightpool, weights)
+    release!(mtxpool, comps_adjmtx)
+    release!(wpool, weights)
     release!(intpool, comp_roots)
     release!(tree, comps)
     return res
