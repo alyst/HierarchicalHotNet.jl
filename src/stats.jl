@@ -172,8 +172,12 @@ function treecut_stats(tree::SCCTree,
                                             walkmatrix, EdgeTest{eltype(walkmatrix)}(rev=tree.rev))
             nflows_v = Vector{Int}()
             ncompflows_v = Vector{Int}()
+            ncompsources_v = Vector{Int}()
+            ncompsinks_v = Vector{Int}()
             flow_avglen_v = Vector{Float64}()
+            flow_dist_v = Vector{Float64}()
             compflow_avglen_v = Vector{Float64}()
+            compflow_dist_v = Vector{Float64}()
             if !isempty(tree.thresholds)
                 iminthresh = searchsortedfirst(weights, first(tree.thresholds))
                 imaxthresh = searchsortedfirst(weights, last(tree.thresholds))
@@ -213,17 +217,28 @@ function treecut_stats(tree::SCCTree,
                 ithresh = searchsortedfirst(weights, thresh)
                 @assert (ithresh <= length(weights)) && (weights[ithresh] == thresh)
                 foreach(sort!, comps) # sorting improves condense!(iwalkmatrix) performace
-                nvtxflows, ncompflows, flowlen, compflowlen, _, _ =
+                nvtxflows, ncompflows, flowlen, compflowlen, ncompsources, ncompsinks =
                     nflows(comps, iwalkmatrix, sources, sinks, EdgeTest{Int32}(threshold=ithresh), pools)
+                nvtxflows_max = length(sources)*length(sinks)
+                ncompflows_max = ncompsources*ncompsinks
+
+                push!(ncompsources_v, ncompsources)
+                push!(ncompsinks_v, ncompsinks)
                 push!(nflows_v, nvtxflows)
                 push!(ncompflows_v, ncompflows)
                 push!(flow_avglen_v, flowlen/nvtxflows)
                 push!(compflow_avglen_v, compflowlen/ncompflows)
+                push!(flow_dist_v, ((nvtxflows_max - nvtxflows) * (length(comps) + 1) + flowlen) / nvtxflows_max)
+                push!(compflow_dist_v, ((ncompflows_max - ncompflows) * (length(comps) + 1) + compflowlen) / ncompflows_max)
             else # duplicate the last nflows
+                push!(ncompsources_v, last(ncompsources_v))
+                push!(ncompsinks_v, last(ncompsinks_v))
                 push!(nflows_v, last(nflows_v))
                 push!(ncompflows_v, last(ncompflows_v))
                 push!(flow_avglen_v, last(flow_avglen_v))
                 push!(compflow_avglen_v, last(compflow_avglen_v))
+                push!(flow_dist_v, last(flow_dist_v))
+                push!(compflow_dist_v, last(compflow_dist_v))
             end
         end
         if vertex_stats !== nothing
@@ -263,10 +278,14 @@ function treecut_stats(tree::SCCTree,
         res.topn_nsinks = topn_nsinks
     end
     if !isnothing(nflows_v)
+        res.ncompsources = ncompsources_v
+        res.ncompsinks = ncompsinks_v
         res.nflows = nflows_v
         res.ncompflows = ncompflows_v
         res.flow_avglen = flow_avglen_v
         res.compflow_avglen = compflow_avglen_v
+        res.flow_distance = flow_dist_v
+        res.compflow_distance = compflow_dist_v
         release!(arraypool(pools, Int32), iwalkmatrix)
         release!(arraypool(pools, eltype(walkmatrix)), weights)
     end
@@ -283,9 +302,11 @@ const treecut_metrics = [
     :ncomponents_signif_mw, :ncomponents_signif_fisher,
     :components_signif_sizesum_mw, :components_signif_sizesum_fisher,
     :maxcomponent_size, :log10_maxcomponent_size,
+    :topn_components_sizesum, :log10_topn_components_sizesum,
     :topn_nsources, :topn_nsinks,
+    :ncompsources, :ncompsinks,
     :nflows, :ncompflows, :flow_avglen, :compflow_avglen,
-    :topn_components_sizesum, :log10_topn_components_sizesum]
+    :flow_distance, :compflow_distance]
 
 function bin_treecut_stats(
     cutstats_df::AbstractDataFrame;
