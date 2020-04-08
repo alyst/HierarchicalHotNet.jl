@@ -149,7 +149,7 @@ end
     @test sort(subgraph) == [(1 => 6, 4 => 5), (2 => 7, 1 => 1), (3 => 2, 1 => 1), (3 => 7, 1 => 1),
                              (5 => 7, 3 => 1), (7 => 3, 1 => 1), (7 => 6, 1 => 5)]
     @test HHN.nflows(tree, adjmtx, [1, 4, 5, 7], [2, 4, 6],
-                     HHN.EdgeTest{Float64}(threshold=20)) == (6, 6, 11, 11)
+                     HHN.EdgeTest{Float64}(threshold=20)) == (6, 6, 11, 11, 4, 3)
 
     @testset "Flows only" begin
         flows2 = Vector{HHN.CompFlow}()

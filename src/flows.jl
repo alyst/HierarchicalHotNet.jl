@@ -307,7 +307,8 @@ function nflows(
    release!(ptnpool, compsinks)
    release!(ptnpool, compsources)
 
-   return (nvtxflows, length(compflows), flowlen, compflowlen)
+   return (nvtxflows, length(compflows), flowlen, compflowlen,
+           sum(!isempty, compsources), sum(!isempty, compsinks))
 end
 
 function nflows(

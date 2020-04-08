@@ -209,7 +209,7 @@ function treecut_stats(tree::SCCTree,
                 ithresh = searchsortedfirst(weights, thresh)
                 @assert (ithresh <= length(weights)) && (weights[ithresh] == thresh)
                 foreach(sort!, comps) # sorting improves condense!(iwalkmatrix) performace
-                nvtxflows, ncompflows, flowlen, compflowlen =
+                nvtxflows, ncompflows, flowlen, compflowlen, _, _ =
                     nflows(comps, iwalkmatrix, sources, sinks, EdgeTest{Int32}(threshold=ithresh), pools)
                 push!(nflows_v, nvtxflows)
                 push!(ncompflows_v, ncompflows)
