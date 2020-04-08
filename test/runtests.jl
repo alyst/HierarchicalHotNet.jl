@@ -1,5 +1,6 @@
 using Test
 using HierarchicalHotNet, SimpleWeightedGraphs, LightGraphs
+using LinearAlgebra, DataFrames
 
 const HHN = HierarchicalHotNet
 
@@ -13,3 +14,4 @@ include("edges_iterator.jl")
 include("connected_components.jl")
 include("scctree.jl")
 include("flows.jl")
+include("stats.jl")
