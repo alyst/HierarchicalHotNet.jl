@@ -174,8 +174,12 @@ function treecut_stats(tree::SCCTree,
             ncompflows_v = Vector{Int}()
             flow_avglen_v = Vector{Float64}()
             compflow_avglen_v = Vector{Float64}()
-            iminthresh = searchsortedfirst(weights, first(tree.thresholds))
-            imaxthresh = searchsortedfirst(weights, last(tree.thresholds))
+            if !isempty(tree.thresholds)
+                iminthresh = searchsortedfirst(weights, first(tree.thresholds))
+                imaxthresh = searchsortedfirst(weights, last(tree.thresholds))
+            else
+                iminthresh = imaxthresh = 0
+            end
         end
     else
         nflows_v = nothing
