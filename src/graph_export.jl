@@ -57,7 +57,7 @@ function export_flowgraph(
         (pos > 0) && (vertices_df[pos, :is_sink] = true)
     end
     if !isnothing(vertices_stats)
-        vertices_df = join(vertices_df, vertices_stats, on=:vertex, kind=:left)
+        vertices_df = leftjoin(vertices_df, vertices_stats, on=:vertex)
     end
 
     filter!(e -> comp2new[e[2][1]] > 0 && comp2new[e[2][2]] > 0, subgraph)
@@ -88,7 +88,7 @@ function export_flowgraph(
                          flow = srccomp == trgcomp ? "loop" : "linear",
                          flow_length = len))
     end
-    source_stats_df = by(flows_df, :source) do outedges_df
+    source_stats_df = combine(groupby(flows_df, :source)) do outedges_df
         sinks = sort!(unique(collect(zip(outedges_df.flow_length,
                                          outedges_df.target))))
         sourcesinks = sort!(unique!(outedges_df[outedges_df.flow .== "circular", :target]))
@@ -98,7 +98,7 @@ function export_flowgraph(
                   loops_through = isempty(sourcesinks) ? missing : join(sourcesinks, ' '),
                   nloops_through = length(sourcesinks))
     end
-    target_stats_df = by(flows_df, :target) do inedges_df
+    target_stats_df = combine(groupby(flows_df, :target)) do inedges_df
         sources = sort!(unique(collect(zip(inedges_df.flow_length,
                                            inedges_df.source))))
         DataFrame(flows_from = isempty(sources) ? missing :
@@ -109,15 +109,15 @@ function export_flowgraph(
     diedges_df.flow_length = missings(Int, nrow(diedges_df))
     append!(diedges_df, flows_df)
     if !isnothing(orig_diedges)
-        diedges_df = join(diedges_df, orig_diedges, on=[:source, :target], kind=:left)
+        diedges_df = leftjoin(diedges_df, orig_diedges, on=[:source, :target])
         diedges_df[!, :is_original] .= .!ismissing.(coalesce.(diedges_df[!, :weight]))
     end
     used_vertices = union!(Set(diedges_df.source), Set(diedges_df.target))
     filter!(r -> r.vertex ∈ used_vertices, vertices_df)
-    vertices_df = join(vertices_df, rename!(source_stats_df, :source => :vertex),
-                       on=:vertex, kind=:left)
-    vertices_df = join(vertices_df, rename!(target_stats_df, :target => :vertex),
-                       on=:vertex, kind=:left)
+    vertices_df = leftjoin(vertices_df, rename!(source_stats_df, :source => :vertex),
+                           on=:vertex)
+    vertices_df = leftjoin(vertices_df, rename!(target_stats_df, :target => :vertex),
+                           on=:vertex)
     outedges_df = filter(r -> r.walkweight >= r.walkweight_rev, diedges_df)
     outedges_df[!, :is_reverse] .= false
     inedges_df = filter(r -> r.walkweight < r.walkweight_rev, diedges_df)
@@ -155,8 +155,8 @@ function export_flowgraph(
     end
 
     if nrow(outedges_df) + nrow(inedges_df) > 0
-        edges_df = by(combine_diedges, vcat(outedges_df, inedges_df),
-                      [:source, :target])
+        edges_df = combine(combine_diedges, groupby(vcat(outedges_df, inedges_df),
+                      [:source, :target]))
     else
         # workaround: add missing columns to the empty frame
         edges_df = combine_diedges(outedges_df)

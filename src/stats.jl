@@ -313,7 +313,7 @@ function bin_treecut_stats(
     by_cols::Union{AbstractVector{Symbol}, Symbol, Nothing} = nothing,
     threshold_range::Union{NTuple{2, Float64}, Nothing} = nothing,
     threshold_nbins::Integer = 100,
-    stat_cols::AbstractVector{Symbol} = intersect(treecut_metrics, names(cutstats_df)),
+    stat_cols::AbstractVector{Symbol} = intersect(treecut_metrics, propertynames(cutstats_df)),
 )
     used_thresholds = threshold_range === nothing ? cutstats_df.threshold :
         filter(t -> threshold_range[1] <= t <= threshold_range[2],
@@ -332,8 +332,8 @@ function bin_treecut_stats(
         used_by_cols = [:threshold_bin]
     end
 
-    binstats_df = by(cutstats_df, used_by_cols;
-                     [col => (col => median) for col in stat_cols]...)
+    binstats_df = combine(groupby(cutstats_df, used_by_cols),
+                          [col => median => col for col in stat_cols]...)
     binstats_df.threshold = [0 < bin <= threshold_nbins ? threshold_bin_centers[bin] : missing
                              for bin in binstats_df.threshold_bin]
     return binstats_df
@@ -343,7 +343,7 @@ function aggregate_treecut_binstats(
     binstats_df::AbstractDataFrame;
     by_cols::Union{AbstractVector{Symbol}, Symbol, Nothing} = nothing,
     quantiles::AbstractVector{<:Number} = [0.025, 0.25, 0.5, 0.75, 0.975],
-    stat_cols::AbstractVector{Symbol} = intersect(treecut_metrics, names(binstats_df))
+    stat_cols::AbstractVector{Symbol} = intersect(treecut_metrics, propertynames(binstats_df))
 )
     used_quantiles = sort!(copy(quantiles))
     med_pos = searchsortedfirst(used_quantiles, 0.5)
@@ -365,28 +365,28 @@ function aggregate_treecut_binstats(
     unique!(used_by_cols)
     deleteat!(used_by_cols, findall(==(:threshold), used_by_cols))
 
-    aggstats_df = by(binstats_df, used_by_cols;
-                     [Symbol(col, reduce(replace, init=@sprintf("_%02.1f", 100*qtl),
+    aggstats_df = combine(groupby(binstats_df, used_by_cols),
+                     [col => (x -> any(isnan, x) ? NaN : quantile(x, qtl)) =>
+                      Symbol(col, reduce(replace, init=@sprintf("_%02.1f", 100*qtl),
                                          [r"\.0$" => "", r"_(\d)\." => s"_0\1",
-                                          r"\.(\d)" => s"\1"])) =>
-                      (col => x -> quantile(x, qtl))
+                                          r"\.(\d)" => s"\1"]))
                       for col in stat_cols, qtl in used_quantiles]...)
-    join(aggstats_df, thresholds_df, on=:threshold_bin, kind=:left)
+    leftjoin(aggstats_df, thresholds_df, on=:threshold_bin)
 end
 
 function extreme_treecut_binstats(
     binstats_df::AbstractDataFrame,
     perm_aggstats_df::AbstractDataFrame;
     join_cols::AbstractVector{Symbol} = [:threshold, :threshold_bin],
-    stat_cols::AbstractVector{Symbol} = intersect(treecut_metrics, names(binstats_df))
+    stat_cols::AbstractVector{Symbol} = intersect(treecut_metrics, propertynames(binstats_df))
 )
     perm_agg_cols_mask = occursin.(Ref(Regex(string("^", join(treecut_metrics, "|")))),
-                                   String.(names(perm_aggstats_df)))
-    joinstats_df = join(select(binstats_df, [join_cols; stat_cols]),
-                        select(perm_aggstats_df, [join_cols; names(perm_aggstats_df)[perm_agg_cols_mask]]),
-                        on=join_cols, kind=:left)
+                                   String.(propertynames(perm_aggstats_df)))
+    joinstats_df = leftjoin(select(binstats_df, [join_cols; stat_cols]),
+                            select(perm_aggstats_df, [join_cols; propertynames(perm_aggstats_df)[perm_agg_cols_mask]]),
+                            on=join_cols)
     by_cols = filter(col -> (col != :threshold) && (col != :threshold_bin), join_cols)
-    by(joinstats_df, by_cols) do df
+    combine(groupby(joinstats_df, by_cols)) do df
         hcat(DataFrame(type = ["min", "max"]), # should match inner for
         reduce(hcat, [begin
             perm50_col = Symbol(col, "_50")
