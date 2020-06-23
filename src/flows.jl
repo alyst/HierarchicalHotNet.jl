@@ -279,36 +279,36 @@ flowgraph(tree::SCCTree, adjmtx::AbstractMatrix,
                tree, adjmtx, sources, sinks, test, pools)
 
 function nflows(
-   comps::IndicesPartition,
-   adjmtx::AbstractMatrix,
-   sources::AbstractVector{Int}, sinks::AbstractVector{Int},
-   test::EdgeTest,
-   pools::Union{ObjectPools, Nothing} = nothing
+    comps::IndicesPartition,
+    adjmtx::AbstractMatrix,
+    sources::AbstractVector{Int}, sinks::AbstractVector{Int},
+    test::EdgeTest,
+    pools::Union{ObjectPools, Nothing} = nothing
 )
-   flowpool = arraypool(pools, Flow)
-   compflows = borrow!(flowpool)
+    flowpool = arraypool(pools, Flow)
+    compflows = borrow!(flowpool)
 
-   ptnpool = objpool(pools, IndicesPartition)
-   compsources = borrow!(ptnpool)
-   compsinks = borrow!(ptnpool)
-   componentsflowgraph!(nothing, compflows, compsources, compsinks, comps,
-                        adjmtx, sources, sinks, test, pools)
-   nvtxflows = 0
-   flowlen = 0
-   compflowlen = 0
-   @inbounds for ((compi, compj), len) in compflows
-       npairs = length(compsources[compi])*length(compsinks[compj])
-       nvtxflows += npairs
-       flowlen += npairs * len
-       compflowlen += len
-   end
+    ptnpool = objpool(pools, IndicesPartition)
+    compsources = borrow!(ptnpool)
+    compsinks = borrow!(ptnpool)
+    componentsflowgraph!(nothing, compflows, compsources, compsinks, comps,
+                         adjmtx, sources, sinks, test, pools)
+    nvtxflows = 0
+    flowlen = 0
+    compflowlen = 0
+    @inbounds for ((compi, compj), len) in compflows
+        npairs = length(compsources[compi])*length(compsinks[compj])
+        nvtxflows += npairs
+        flowlen += npairs * len
+        compflowlen += len
+    end
 
-   release!(flowpool, compflows)
-   release!(ptnpool, compsinks)
-   release!(ptnpool, compsources)
+    release!(flowpool, compflows)
+    release!(ptnpool, compsinks)
+    release!(ptnpool, compsources)
 
-   return (nvtxflows, length(compflows), flowlen, compflowlen,
-           sum(!isempty, compsources), sum(!isempty, compsinks))
+    return (nvtxflows, length(compflows), flowlen, compflowlen,
+            sum(!isempty, compsources), sum(!isempty, compsinks))
 end
 
 function nflows(
