@@ -366,7 +366,7 @@ function aggregate_treecut_binstats(
     deleteat!(used_by_cols, findall(==(:threshold), used_by_cols))
 
     aggstats_df = combine(groupby(binstats_df, used_by_cols),
-                     [col => (x -> any(isnan, x) ? NaN : quantile(x, qtl)) =>
+                     [col => (x -> any(x -> ismissing(x) || isnan(x), x) ? NaN : quantile(x, qtl)) =>
                       Symbol(col, reduce(replace, init=@sprintf("_%02.1f", 100*qtl),
                                          [r"\.0$" => "", r"_(\d)\." => s"_0\1",
                                           r"\.(\d)" => s"\1"]))
