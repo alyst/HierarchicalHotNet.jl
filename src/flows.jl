@@ -296,11 +296,13 @@ function nflows(
     nvtxflows = 0
     flowlen_sum = 0
     compflowlen_sum = 0
+    compflowlen_max = 0
     @inbounds for ((compi, compj), len) in compflows
         npairs = length(compsources[compi])*length(compsinks[compj])
         nvtxflows += npairs
         flowlen_sum += npairs * len
         compflowlen_sum += len
+        compflowlen_max = max(compflowlen_max, len)
     end
 
     release!(flowpool, compflows)
@@ -309,6 +311,7 @@ function nflows(
 
     return (nflows = nvtxflows, ncompflows=length(compflows),
             flowlen_sum = flowlen_sum, compflowlen_sum = compflowlen_sum,
+            compflowlen_max = compflowlen_max,
             ncompsources = sum(!isempty, compsources),
             ncompsinks = sum(!isempty, compsinks))
 end

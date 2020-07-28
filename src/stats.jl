@@ -228,8 +228,8 @@ function treecut_stats(tree::SCCTree,
                 push!(ncompflows_v, flowstats.ncompflows)
                 push!(flow_avglen_v, flowstats.flowlen_sum/flowstats.nflows)
                 push!(compflow_avglen_v, flowstats.compflowlen_sum/flowstats.ncompflows)
-                push!(flow_dist_v, ((nvtxflows_max - flowstats.nflows) * (length(comps) + 1) + flowstats.flowlen_sum) / nvtxflows_max)
-                push!(compflow_dist_v, ((ncompflows_max - flowstats.ncompflows) * (length(comps) + 1) + flowstats.compflowlen_sum) / ncompflows_max)
+                push!(flow_dist_v, ((nvtxflows_max - flowstats.nflows) * (flowstats.compflowlen_max + 1) + flowstats.flowlen_sum) / nvtxflows_max)
+                push!(compflow_dist_v, ((ncompflows_max - flowstats.ncompflows) * (flowstats.compflowlen_max + 1) + flowstats.compflowlen_sum) / ncompflows_max)
             else # duplicate the last nflows
                 push!(ncompsources_v, last(ncompsources_v))
                 push!(ncompsinks_v, last(ncompsinks_v))
