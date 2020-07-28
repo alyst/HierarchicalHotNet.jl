@@ -294,21 +294,23 @@ function nflows(
     componentsflowgraph!(nothing, compflows, compsources, compsinks, comps,
                          adjmtx, sources, sinks, test, pools)
     nvtxflows = 0
-    flowlen = 0
-    compflowlen = 0
+    flowlen_sum = 0
+    compflowlen_sum = 0
     @inbounds for ((compi, compj), len) in compflows
         npairs = length(compsources[compi])*length(compsinks[compj])
         nvtxflows += npairs
-        flowlen += npairs * len
-        compflowlen += len
+        flowlen_sum += npairs * len
+        compflowlen_sum += len
     end
 
     release!(flowpool, compflows)
     release!(ptnpool, compsinks)
     release!(ptnpool, compsources)
 
-    return (nvtxflows, length(compflows), flowlen, compflowlen,
-            sum(!isempty, compsources), sum(!isempty, compsinks))
+    return (nflows = nvtxflows, ncompflows=length(compflows),
+            flowlen_sum = flowlen_sum, compflowlen_sum = compflowlen_sum,
+            ncompsources = sum(!isempty, compsources),
+            ncompsinks = sum(!isempty, compsinks))
 end
 
 function nflows(

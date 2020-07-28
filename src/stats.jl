@@ -217,19 +217,19 @@ function treecut_stats(tree::SCCTree,
                 ithresh = searchsortedfirst(weights, thresh)
                 @assert (ithresh <= length(weights)) && (weights[ithresh] == thresh)
                 foreach(sort!, comps) # sorting improves condense!(iwalkmatrix) performace
-                nvtxflows, ncompflows, flowlen, compflowlen, ncompsources, ncompsinks =
+                flowstats =
                     nflows(comps, iwalkmatrix, sources, sinks, EdgeTest{Int32}(threshold=ithresh), pools)
                 nvtxflows_max = length(sources)*length(sinks)
-                ncompflows_max = ncompsources*ncompsinks
+                ncompflows_max = flowstats.ncompsources*flowstats.ncompsinks
 
-                push!(ncompsources_v, ncompsources)
-                push!(ncompsinks_v, ncompsinks)
-                push!(nflows_v, nvtxflows)
-                push!(ncompflows_v, ncompflows)
-                push!(flow_avglen_v, flowlen/nvtxflows)
-                push!(compflow_avglen_v, compflowlen/ncompflows)
-                push!(flow_dist_v, ((nvtxflows_max - nvtxflows) * (length(comps) + 1) + flowlen) / nvtxflows_max)
-                push!(compflow_dist_v, ((ncompflows_max - ncompflows) * (length(comps) + 1) + compflowlen) / ncompflows_max)
+                push!(ncompsources_v, flowstats.ncompsources)
+                push!(ncompsinks_v, flowstats.ncompsinks)
+                push!(nflows_v, flowstats.nflows)
+                push!(ncompflows_v, flowstats.ncompflows)
+                push!(flow_avglen_v, flowstats.flowlen_sum/flowstats.nflows)
+                push!(compflow_avglen_v, flowstats.compflowlen_sum/flowstats.ncompflows)
+                push!(flow_dist_v, ((nvtxflows_max - flowstats.nflows) * (length(comps) + 1) + flowstats.flowlen_sum) / nvtxflows_max)
+                push!(compflow_dist_v, ((ncompflows_max - flowstats.ncompflows) * (length(comps) + 1) + flowstats.compflowlen_sum) / ncompflows_max)
             else # duplicate the last nflows
                 push!(ncompsources_v, last(ncompsources_v))
                 push!(ncompsinks_v, last(ncompsinks_v))
