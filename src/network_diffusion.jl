@@ -1,7 +1,7 @@
 """
-Construct the walk matrix for the random walk.
+Construct the step matrix for the random walk.
 """
-function walk_matrix(adjmtx::AbstractMatrix{<:Number};
+function stepmatrix(adjmtx::AbstractMatrix{<:Number};
                      normalize_weights::Bool=true)
     check_square(adjmtx, "Adjacency matrix")
     adj_mtx = copy(adjmtx)
@@ -13,8 +13,8 @@ function walk_matrix(adjmtx::AbstractMatrix{<:Number};
     return adj_mtx
 end
 
-walk_matrix(g::AbstractSimpleWeightedGraph; kwargs...) =
-    walk_matrix(LightGraphs.weights(g); kwargs...)
+stepmatrix(g::AbstractSimpleWeightedGraph; kwargs...) =
+    stepmatrix(LightGraphs.weights(g); kwargs...)
 
 """
 Find the matrix that transforms given initial node probabilities into
@@ -23,7 +23,7 @@ stationary distribution of visiting probabilities of a random walk with restart.
 random_walk_matrix(g::AbstractSimpleWeightedGraph,
                    restart_probability::Number=0.1;
                    normalize_weights::Bool=true) =
-    random_walk_matrix(Matrix(walk_matrix(g, normalize_weights=normalize_weights)),
+    random_walk_matrix(Matrix(stepmatrix(g, normalize_weights=normalize_weights)),
                        restart_probability)
 
 function random_walk_matrix(adjmtx::AbstractMatrix,
