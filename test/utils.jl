@@ -102,3 +102,9 @@ end
     ci16x16 = CartesianIndices((16, 16))
     @test length(unique!(vec(HHN.hilbertorder.(getindex.(ci16x16, 1), getindex.(ci16x16, 2), 16)))) == 256
 end
+
+@testset "check_square()" begin
+    @test HHN.check_square(Matrix{Int}(undef, 0, 0))
+    @test HHN.check_square(Matrix{Int}(undef, 5, 5))
+    @test_throws DimensionMismatch HHN.check_square(Matrix{Int}(undef, 2, 5))
+end

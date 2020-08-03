@@ -3,8 +3,7 @@ Construct the walk matrix for the random walk.
 """
 function walk_matrix(adjmtx::AbstractMatrix{<:Number};
                      normalize_weights::Bool=true)
-    (size(adjmtx, 1) == size(adjmtx, 2)) ||
-        throw(ArgumentError("Adjacency matrix needs to be square, $(size(adjmtx)) found"))
+    check_square(adjmtx, "Adjacency matrix")
     adj_mtx = copy(adjmtx)
     if normalize_weights
         node_degs = sum(adj_mtx, dims=1)
@@ -29,7 +28,7 @@ random_walk_matrix(g::AbstractSimpleWeightedGraph,
 
 function random_walk_matrix(adjmtx::AbstractMatrix,
                             restart_probability::Number = 0.1)
-    size(adjmtx, 1) == size(adjmtx, 2) || throw(DimensionMismatch("Square matrix required"))
+    check_square(adjmtx, "Adjacency matrix")
     return restart_probability * inv(
             diagm(0 => fill(1.0, size(adjmtx, 1))) -
             (1-restart_probability) * adjmtx)
@@ -43,7 +42,7 @@ function similarity_matrix(g::AbstractSimpleWeightedGraph,
 end
 
 function neighborhood_weights(adjmtx::AbstractMatrix, g::AbstractGraph)
-    size(adjmtx, 1) == size(adjmtx, 2) || throw(DimensionMismatch("Square adjacency matrix expected, $(size(adjmtx)) given"))
+    check_square(adjmtx, "Adjacency matrix")
     n = size(adjmtx, 1)
     (n == nv(g)) || throw(DimensionMismatch("Adjacency matrix columns ($n) do not match the number of graph vertices ($(nv(g)))"))
     return [sum(j -> j != i ? weights[j] : 0.0, neighborhood(g, i, 1))

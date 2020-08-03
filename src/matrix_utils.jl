@@ -1,3 +1,7 @@
+check_square(mtx::AbstractMatrix, label::AbstractString = "Matrix") =
+    (size(mtx, 1) == size(mtx, 2)) ||
+        throw(DimensionMismatch("$label needs to be square, $(size(mtx)) found"))
+
 function sortedvalues!(res::AbstractVector{T}, A::AbstractArray{T},
                        test::EdgeTest{T} = EdgeTest{T}();
                        alg=Base.Sort.defalg(A)) where T

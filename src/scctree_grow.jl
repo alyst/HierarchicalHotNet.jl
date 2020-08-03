@@ -178,7 +178,7 @@ function scctree(adjmtx::AbstractMatrix; method::Symbol=:bisect,
                  seedling::Union{SCCSeedling, Nothing} = nothing,
                  kwargs...)
     nvertices = size(adjmtx, 1)
-    nvertices == size(adjmtx, 2) || throw(DimensionMismatch("Adjacency matrix must be square"))
+    check_square(adjmtx, "Adjacency matrix")
     tree = isnothing(seedling) ? SCCSeedling(adjmtx, skipval=skipval, rev=rev) :
            reset!(seedling, adjmtx, skipval=skipval, rev=rev)
     if method == :bisect
