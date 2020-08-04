@@ -28,35 +28,35 @@
         @test isempty(subgraph)
 
         subgraph, flows = HHN.componentsflowgraph(adjmtx, [[1]], [[2]])
-        @test flows == [(1 => 1, HHN.FlowInfo(0))]
+        @test flows == [(1 => 1, HHN.FlowInfo(0, 1.0))]
         @test subgraph == [1 => 1]
 
         # self-loops when the matrix doesn't have them
         subgraph, flows = HHN.componentsflowgraph(fill(0.0, (1, 1)), [[1]], [[2]])
-        @test flows == [(1 => 1, HHN.FlowInfo(0))]
+        @test flows == [(1 => 1, HHN.FlowInfo(0, 0.0))]
         @test subgraph == [1 => 1]
     end
 
     @testset "2x2" begin
         subgraph, flows = HHN.componentsflowgraph([1 0; 0 1], [[1], [1]], [[1], []])
-        @test flows == [(1 => 1, HHN.FlowInfo(0))]
+        @test flows == [(1 => 1, HHN.FlowInfo(0, 1.0))]
         @test subgraph == [1 => 1]
 
         subgraph, flows = HHN.componentsflowgraph([1 0; 0 1], [[1], [1]], [[1], [1]])
-        @test flows == [(1 => 1, HHN.FlowInfo(0)), (2 => 2, HHN.FlowInfo(0))]
+        @test flows == [(1 => 1, HHN.FlowInfo(0, 1.0)), (2 => 2, HHN.FlowInfo(0, 1.0))]
         @test subgraph == [1 => 1, 2 => 2]
 
-        subgraph, flows = HHN.componentsflowgraph([1 1; 0 1], [[1], [1]], [[1], [1]])
-        @test sort(flows) == [(1 => 1, HHN.FlowInfo(0)),
-                              (2 => 1, HHN.FlowInfo(1)),
-                              (2 => 2, HHN.FlowInfo(0))]
+        subgraph, flows = HHN.componentsflowgraph([1 0.8; 0 1], [[1], [1]], [[1], [1]])
+        @test sort(flows) == [(1 => 1, HHN.FlowInfo(0, 1.0)),
+                              (2 => 1, HHN.FlowInfo(1, 0.8)),
+                              (2 => 2, HHN.FlowInfo(0, 1.0))]
         @test sort(subgraph) == [1 => 1, 2 => 1, 2 => 2]
 
         # self-loops when there are no edges again
-        subgraph, flows = HHN.componentsflowgraph([0 1; 0 0], [[1], [1]], [[1], [1]])
-        @test sort(flows) == [(1 => 1, HHN.FlowInfo(0)),
-                              (2 => 1, HHN.FlowInfo(1)),
-                              (2 => 2, HHN.FlowInfo(0))]
+        subgraph, flows = HHN.componentsflowgraph([0 0.6; 0 0], [[1], [1]], [[1], [1]])
+        @test sort(flows) == [(1 => 1, HHN.FlowInfo(0, 0.0)),
+                              (2 => 1, HHN.FlowInfo(1, 0.6)),
+                              (2 => 2, HHN.FlowInfo(0, 0.0))]
         @test sort(subgraph) == [1 => 1, 2 => 1, 2 => 2]
 
         subgraph, flows = HHN.componentsflowgraph([1 1; 0 1], [[1], []], [[], [1]])
@@ -64,36 +64,36 @@
         @test isempty(subgraph)
 
         subgraph, flows = HHN.componentsflowgraph([1 0; 1 1], [[1], []], [[], [1]])
-        @test flows == [(1 => 2, HHN.FlowInfo(1))]
+        @test flows == [(1 => 2, HHN.FlowInfo(1, 1.0))]
         @test subgraph == [1 => 2]
     end
 
     @testset "3x3" begin
         subgraph, flows = HHN.componentsflowgraph([0 0 0; 1 0 0; 0 1 0], [[1], [], []], [[], [], [1]])
-        @test flows == [(1 => 3, HHN.FlowInfo(2))]
+        @test flows == [(1 => 3, HHN.FlowInfo(2, 0.0))]
         @test sort(subgraph) == [1 => 2, 2 => 3]
 
-        subgraph, flows = HHN.componentsflowgraph([0 0 0; 1 0 0; 0 1 0], [[1], [1], []], [[], [], [1]])
-        @test sort(flows) == [(1 => 3, HHN.FlowInfo(2)), (2 => 3, HHN.FlowInfo(1))]
+        subgraph, flows = HHN.componentsflowgraph([0 0 0; 0.5 0 0; 0 0.7 0], [[1], [1], []], [[], [], [1]])
+        @test sort(flows) == [(1 => 3, HHN.FlowInfo(2, 0.0)), (2 => 3, HHN.FlowInfo(1, 0.7))]
         @test sort(subgraph) == [1 => 2, 2 => 3]
 
-        subgraph, flows = HHN.componentsflowgraph([0 0 0; 1 0 0; 0 1 0], [[], [1], []], [[], [], [1]])
-        @test flows == [(2 => 3, HHN.FlowInfo(1))]
+        subgraph, flows = HHN.componentsflowgraph([0 0 0; 0.5 0 0; 0 0.7 0], [[], [1], []], [[], [], [1]])
+        @test flows == [(2 => 3, HHN.FlowInfo(1, 0.7))]
         @test subgraph == [2 => 3]
 
         subgraph, flows = HHN.componentsflowgraph([0 0 0; 1 0 0; 1 1 0], [[1], [], []], [[], [], [1]])
-        @test sort(flows) == [(1 => 3, HHN.FlowInfo(1))]
+        @test sort(flows) == [(1 => 3, HHN.FlowInfo(1, 1.0))]
         @test sort(subgraph) == [1 => 2, 1 => 3, 2 => 3]
 
-        subgraph, flows = HHN.componentsflowgraph([0 0 0; 1 0 1; 0 0 0], [[1], [], [1]], [[], [1], []])
-        @test sort(flows) == [(1 => 2, HHN.FlowInfo(1)),
-                              (3 => 2, HHN.FlowInfo(1))]
+        subgraph, flows = HHN.componentsflowgraph([0 0 0; 0.4 0 0.6; 0 0 0], [[1], [], [1]], [[], [1], []])
+        @test sort(flows) == [(1 => 2, HHN.FlowInfo(1, 0.4)),
+                              (3 => 2, HHN.FlowInfo(1, 0.6))]
         @test sort(subgraph) == [1 => 2, 3 => 2]
 
         subgraph, flows = HHN.componentsflowgraph([0 0 0; 1 1 1; 0 0 0], [[1], [1], [1]], [[], [1], []])
-        @test sort(flows) == [(1 => 2, HHN.FlowInfo(1)),
-                              (2 => 2, HHN.FlowInfo(0)),
-                              (3 => 2, HHN.FlowInfo(1))]
+        @test sort(flows) == [(1 => 2, HHN.FlowInfo(1, 1.0)),
+                              (2 => 2, HHN.FlowInfo(0, 1.0)),
+                              (3 => 2, HHN.FlowInfo(1, 1.0))]
         @test sort(subgraph) == [1 => 2, 2 => 2, 3 => 2]
     end
 
@@ -101,7 +101,7 @@
         subgraph, flows = HHN.componentsflowgraph([0 0 0 0; 1 0 0 0; 0 1 0 0; 0 1 0 0],
                                     [[1], [], [], []],
                                     [[], [], [1], []])
-        @test flows == [(1 => 3, HHN.FlowInfo(2))]
+        @test flows == [(1 => 3, HHN.FlowInfo(2, 0.0))]
         @test sort(subgraph) == [1 => 2, 2 => 3]
     end
 
@@ -122,7 +122,7 @@
                                     [[], [], [1], [], []],
                                     [[1], [], [], [], []],
                                     HHN.EdgeTest{Float64}(threshold=15))
-        @test flows == [(3 => 1, HHN.FlowInfo(1))]
+        @test flows == [(3 => 1, HHN.FlowInfo(1, adjmtx[1, 3]))]
         @test sort(subgraph) == [2 => 1, 3 => 1, 3 => 2]
 
         @testset "with ObjectPools" begin
@@ -148,17 +148,18 @@ end
     tree = HHN.scctree(adjmtx)
     subgraph, flows, conncomps = HHN.flowgraph(tree, adjmtx, [1, 4, 5, 7], [2, 4, 6],
                                            HHN.EdgeTest{Float64}(threshold=20))
-    @test sort(flows) == [(1 => 6, 4 => 5, HHN.FlowInfo(1)),
-                          (4 => 4, 2 => 2, HHN.FlowInfo(0)),
-                          (5 => 2, 3 => 1, HHN.FlowInfo(1)),
-                          (5 => 6, 3 => 5, HHN.FlowInfo(2)),
-                          (7 => 2, 1 => 1, HHN.FlowInfo(0)),
-                          (7 => 6, 1 => 5, HHN.FlowInfo(1))]
+    @test sort(flows) == [(1 => 6, 4 => 5, HHN.FlowInfo(1, adjmtx[6, 1])),
+                          (4 => 4, 2 => 2, HHN.FlowInfo(0, adjmtx[4, 4])),
+                          (5 => 2, 3 => 1, HHN.FlowInfo(1, adjmtx[7, 5])), # 7 is a member of 1st component that provides highest weight
+                          (5 => 6, 3 => 5, HHN.FlowInfo(2, adjmtx[6, 5])),
+                          (7 => 2, 1 => 1, HHN.FlowInfo(0, adjmtx[3, 7])), # 3 - 7 has highest walk weight
+                          (7 => 6, 1 => 5, HHN.FlowInfo(1, adjmtx[6, 7]))]
     @test sort(subgraph) == [(1 => 6, 4 => 5), (2 => 7, 1 => 1), (3 => 2, 1 => 1), (3 => 7, 1 => 1),
                              (5 => 7, 3 => 1), (7 => 3, 1 => 1), (7 => 6, 1 => 5)]
     @test HHN.nflows(tree, adjmtx, [1, 4, 5, 7], [2, 4, 6],
                      HHN.EdgeTest{Float64}(threshold=20)) == (nflows=6, ncompflows=6,
-                                                              flowlen_sum=11, compflowlen_sum=11, compflowlen_max=3,
+                                                              flowlen_sum=5, compflowlen_sum=5, compflowlen_max=2,
+                                                              floweight_sum = 141.0, compfloweight_sum = 141.0,
                                                               ncompsources=4, ncompsinks=3)
 
     @testset "Flows only" begin

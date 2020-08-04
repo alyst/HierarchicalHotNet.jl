@@ -2,6 +2,7 @@ const Diedge = Pair{Int, Int}               # directed edge
 const FlowInfoWIP = Int                     # in-progress FlowInfo
 struct FlowInfo
     len::Int        # shortest path
+    weight::Float64 # start => end walk weight
 end
 const Flow = Tuple{Diedge, FlowInfo}        # flow: source=>target, data
 const CompDiedge = Tuple{Diedge, Diedge}    # directed edge from one component to the other (source comp => target comp, source vertex => target vertex)
@@ -96,7 +97,7 @@ function componentsflowgraph!(
                 if !ispartempty(compsources, v)
                     if !isnothing(reachable[v])
                         for (dest, vinfo) in reachable[v]
-                            push!(flows, (v => dest, FlowInfo(vinfo)))
+                            push!(flows, (v => dest, FlowInfo(vinfo, adjmtx[dest, v])))
                         end
                         # self-loop
                         !ispartempty(compsinks, v) && !isnothing(subgraph) && push!(subgraph, v => v)
@@ -144,7 +145,7 @@ function componentsflowgraph!(
     # using pool actually slows it down
     mtxpool = arraypool(pools, eltype(adjmtx))#NoopArrayPool{eltype(adjmtx)}()#
     compmtx = condense!(borrow!(mtxpool, (length(comps), length(comps))),
-                        adjmtx, comps, test, zerodiag=true)
+                        adjmtx, comps, test, zerodiag=false)
 
     # distribute sources and sinks into connected components
     ptnpool = objpool(pools, IndicesPartition)
@@ -299,13 +300,17 @@ function nflows(
                          adjmtx, sources, sinks, test, pools)
     nvtxflows = 0
     flowlen_sum = 0
+    floweight_sum = 0.0
     compflowlen_sum = 0
+    compfloweight_sum = 0.0
     compflowlen_max = 0
     @inbounds for ((compi, compj), info) in compflows
         npairs = length(compsources[compi])*length(compsinks[compj])
         nvtxflows += npairs
         flowlen_sum += npairs * info.len
+        floweight_sum += npairs * info.weight
         compflowlen_sum += info.len
+        compfloweight_sum += info.weight
         compflowlen_max = max(compflowlen_max, info.len)
     end
 
@@ -316,6 +321,7 @@ function nflows(
     return (nflows = nvtxflows, ncompflows=length(compflows),
             flowlen_sum = flowlen_sum, compflowlen_sum = compflowlen_sum,
             compflowlen_max = compflowlen_max,
+            floweight_sum = floweight_sum, compfloweight_sum = compfloweight_sum,
             ncompsources = sum(!isempty, compsources),
             ncompsinks = sum(!isempty, compsinks))
 end
