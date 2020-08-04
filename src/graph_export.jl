@@ -4,6 +4,8 @@ function export_flowgraph(
     sources::AbstractVector{<:Integer}, sinks::AbstractVector{<:Integer};
     orig_diedges::Union{AbstractDataFrame, Nothing} = nothing,
     vertices_stats::Union{AbstractDataFrame, Nothing} = nothing,
+    stepmatrix::Union{AbstractMatrix, Nothing} = nothing,
+    step_threshold::Number = 0.75 * threshold, maxsteps::Integer = 2,
     flow_edges::Bool=false,
     pvalue_mw_max::Number=0.05,
     pvalue_fisher_max::Number=0.05,
@@ -39,23 +41,54 @@ function export_flowgraph(
     comp2new[components_df.component0] .= components_df.component
 
     verbose && @info "$(nelems(used_comps)) vertices in $(length(used_comps)) connected components"
+    pos2vertex = copy(used_comps.elems)
     vertex2pos = fill(0, nvertices(tree))
-    vertex2pos[used_comps.elems] = 1:nelems(used_comps)
-    vertices_df = DataFrame(vertex = used_comps.elems)
+    vertex2pos[pos2vertex] = eachindex(pos2vertex)
+    if !isnothing(stepmatrix)
+        # trace the steps between the vertices of the flowgraph
+        flow_walkmatrix = fill(zero(W), size(walkmatrix))
+        @inbounds flow_walkmatrix[pos2vertex, pos2vertex] .= view(walkmatrix, pos2vertex, pos2vertex)
+        stepedges = tracesteps(Matrix(stepmatrix), EdgeTest{W}(threshold=step_threshold),
+                               flow_walkmatrix, EdgeTest{W}(threshold=threshold),
+                               pools, maxsteps=maxsteps)
+        verbose && @info("$(length(stepedges)) step edge(s) traced (step_threshold=$(step_threshold), maxsteps=$maxsteps)")
+        # add vertices from steps that are not yet in the flowgraph
+        extra_vtxs_set = Set{Int}()
+        @inbounds for (src, trg) in stepedges
+            (vertex2pos[src] == 0) && push!(extra_vtxs_set, src)
+            (vertex2pos[trg] == 0) && push!(extra_vtxs_set, trg)
+        end
+        extra_vtxs = sort!(collect(extra_vtxs_set))
+        verbose && @info("$(length(extra_vtxs)) extra vertice(s) for step edges")
+        # update the mapping
+        vertex2pos[extra_vtxs] = length(pos2vertex) .+ eachindex(extra_vtxs)
+        append!(pos2vertex, extra_vtxs)
+    else
+        stepedges = nothing
+        extra_vtxs = Vector{Int}()
+    end
+
+    # create vertices dataframe
+    vertices_df = DataFrame(vertex = pos2vertex)
     vertices_df[!, :component] .= 0
     for i in eachindex(used_comps)
         vertices_df[partrange(used_comps, i), :component] .= i
     end
-    @assert all(>(0), vertices_df.component)
+    #@assert all(>(0), vertices_df.component) doesn't hold if there are intermediate step edges
     vertices_df[!, :is_source] .= false
-    vertices_df[!, :is_sink] .= false
-    @inbounds for src in sources
-        pos = vertex2pos[src]
+    @inbounds for v in sources
+        pos = vertex2pos[v]
         (pos > 0) && (vertices_df[pos, :is_source] = true)
     end
-    @inbounds for snk in sinks
-        pos = vertex2pos[snk]
+    vertices_df[!, :is_sink] .= false
+    @inbounds for v in sinks
+        pos = vertex2pos[v]
         (pos > 0) && (vertices_df[pos, :is_sink] = true)
+    end
+    vertices_df[!, :is_steptrace] .= false
+    @inbounds for v in extra_vtxs
+        pos = vertex2pos[v]
+        (pos > 0) && (vertices_df[pos, :is_steptrace] = true)
     end
     if !isnothing(vertices_stats)
         vertices_df = leftjoin(vertices_df, vertices_stats, on=:vertex)
@@ -109,7 +142,18 @@ function export_flowgraph(
                                join(string.(last.(sources), '(', first.(sources),')'), ' '),
                   nflows_from = length(sources))
     end
+
     diedges_df.flow = missings(String, nrow(diedges_df))
+    if !isnothing(stepedges)
+        steps_df = DataFrame(source = first.(stepedges),
+                             target = last.(stepedges))
+        extra_diedges_df = antijoin(steps_df, diedges_df, on=[:source, :target])
+        extra_diedges_df[!, :flow] .= "trace"
+        extra_diedges_df.walkweight = missings(W, nrow(extra_diedges_df))
+        extra_diedges_df.walkweight_rev = missings(W, nrow(extra_diedges_df))
+        append!(diedges_df, extra_diedges_df)
+        verbose && @info("$(nrow(extra_diedges_df)) traced step edge(s) added")
+    end
     diedges_df.flowlen = missings(Int, nrow(diedges_df))
     diedges_df.floweight = missings(W, nrow(diedges_df))
 
@@ -132,12 +176,13 @@ function export_flowgraph(
 
     function combine_diedges(edge_df::AbstractDataFrame)
         res = DataFrame(
-            has_flow = !all(ismissing, edge_df.flow),
-            has_walk = any(ismissing, edge_df.flow),
-            walkweight = any(r -> ismissing(r.flow) && !r.is_reverse, eachrow(edge_df)) ?
-                    maximum(edge_df[ismissing.(edge_df.flow) .& .!edge_df.is_reverse, :walkweight]) : missing,
-            walkweight_rev = any(r -> ismissing(r.flow) && r.is_reverse, eachrow(edge_df)) ?
-                    maximum(edge_df[ismissing.(edge_df.flow) .& edge_df.is_reverse, :walkweight]) : missing
+            has_flow = !all(ismissing, edge_df.flowlen),
+            has_trace = all(x -> coalesce(x, "") == "trace", edge_df.flow),
+            has_walk = any(ismissing, edge_df.flowlen),
+            walkweight = any(r -> ismissing(r.flowlen) && !r.is_reverse, eachrow(edge_df)) ?
+                    maximum(edge_df[ismissing.(edge_df.flowlen) .& .!edge_df.is_reverse, :walkweight]) : missing,
+            walkweight_rev = any(r -> ismissing(r.flowlen) && r.is_reverse, eachrow(edge_df)) ?
+                    maximum(edge_df[ismissing.(edge_df.flowlen) .& edge_df.is_reverse, :walkweight]) : missing
         )
         if hasproperty(edge_df, :is_original)
             res[!, :has_original] .= any(r -> r.is_original && !r.is_reverse, eachrow(edge_df))
