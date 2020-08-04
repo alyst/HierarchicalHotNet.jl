@@ -12,6 +12,7 @@ function export_flowgraph(
 ) where T
     nvertices(tree) == size(walkmatrix, 1) == size(walkmatrix, 2) ||
         throw(DimensionMismatch("Number of tree vertices ($(nvertices(tree))) doesn't match the walk matrix dimensions ($(size(walkmatrix)))"))
+    W = eltype(walkmatrix)
     subgraph, flows, conncomps = flowgraph(tree, walkmatrix, sources, sinks,
                                            EdgeTest{T}(threshold=threshold),
                                            pools)
@@ -64,8 +65,8 @@ function export_flowgraph(
     filter!(e -> comp2new[e[2][1]] > 0 && comp2new[e[2][2]] > 0, flows)
     diedges_df = DataFrame(source = Vector{Int}(),
                            target = Vector{Int}(),
-                           walkweight = Vector{Float64}(),
-                           walkweight_rev = Vector{Float64}())
+                           walkweight = Vector{Union{W, Missing}}(),
+                           walkweight_rev = Vector{Union{W, Missing}}())
     flows_df = copy(diedges_df)
     for ((src, trg), (srccomp, trgcomp)) in subgraph
         (comp2new[srccomp] != 0) && (comp2new[trgcomp] != 0) || continue
@@ -118,9 +119,9 @@ function export_flowgraph(
                            on=:vertex)
     vertices_df = leftjoin(vertices_df, rename!(target_stats_df, :target => :vertex),
                            on=:vertex)
-    outedges_df = filter(r -> r.walkweight >= r.walkweight_rev, diedges_df)
+    outedges_df = filter(r -> coalesce(r.walkweight, zero(W)) >= coalesce(r.walkweight_rev, zero(W)), diedges_df)
     outedges_df[!, :is_reverse] .= false
-    inedges_df = filter(r -> r.walkweight < r.walkweight_rev, diedges_df)
+    inedges_df = filter(r -> coalesce(r.walkweight, zero(W)) < coalesce(r.walkweight_rev, zero(W)), diedges_df)
     inedges_df[!, :is_reverse] .= true
     rename!(inedges_df, :source => :target, :target => :source)
 
