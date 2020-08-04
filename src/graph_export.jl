@@ -128,7 +128,7 @@ function export_flowgraph(
     source_stats_df = combine(groupby(flows_df, :source)) do outedges_df
         sinks = sort!(unique(collect(zip(outedges_df.flowlen,
                                          outedges_df.target))))
-        sourcesinks = sort!(unique!(outedges_df[outedges_df.flow .== "circular", :target]))
+        sourcesinks = sort!(unique!(outedges_df[outedges_df.flow .== "loop", :target]))
         DataFrame(flows_to = isempty(sinks) ? missing :
                               join(string.(last.(sinks), '(', first.(sinks),')'), ' '),
                   nflows_to = length(sinks),
