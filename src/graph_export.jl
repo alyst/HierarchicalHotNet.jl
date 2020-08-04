@@ -80,15 +80,18 @@ function export_flowgraph(
 
     flows_df.flow = Vector{String}()
     flows_df.flowlen = Vector{Int}()
+    flows_df.floweight = Vector{W}()
     for ((src, trg), (srccomp, trgcomp), info) in flows
         (comp2new[srccomp] != 0) && (comp2new[trgcomp] != 0) || continue
         push!(flows_df, (source = src,
                          target = trg,
                          walkweight = threshold,
                          walkweight_rev = threshold,
-                         flow = srccomp == trgcomp ? "loop" : "linear",
-                         flowlen = info.len))
+                         flow = srccomp == trgcomp ? "loop" : "flow",
+                         flowlen = info.len,
+                         floweight = info.weight))
     end
+
     source_stats_df = combine(groupby(flows_df, :source)) do outedges_df
         sinks = sort!(unique(collect(zip(outedges_df.flowlen,
                                          outedges_df.target))))
@@ -108,6 +111,8 @@ function export_flowgraph(
     end
     diedges_df.flow = missings(String, nrow(diedges_df))
     diedges_df.flowlen = missings(Int, nrow(diedges_df))
+    diedges_df.floweight = missings(W, nrow(diedges_df))
+
     append!(diedges_df, flows_df)
     if !isnothing(orig_diedges)
         diedges_df = leftjoin(diedges_df, orig_diedges, on=[:source, :target])
