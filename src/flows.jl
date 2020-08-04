@@ -1,7 +1,11 @@
 const Diedge = Pair{Int, Int}               # directed edge
-const Flow = Tuple{Diedge, Int}             # flow: source=>target, length
-const CompDiedge = Tuple{Diedge, Diedge}    # directed edge from one component to the other
-const CompFlow = Tuple{Diedge, Diedge, Int} # directed edge from one component to the other
+const FlowInfoWIP = Int                     # in-progress FlowInfo
+struct FlowInfo
+    len::Int        # shortest path
+end
+const Flow = Tuple{Diedge, FlowInfo}        # flow: source=>target, data
+const CompDiedge = Tuple{Diedge, Diedge}    # directed edge from one component to the other (source comp => target comp, source vertex => target vertex)
+const CompFlow = Tuple{Diedge, Diedge, FlowInfo} # directed flow from one component to the other
 
 function componentsflowgraph!(
     subgraph::Union{AbstractVector{Diedge}, Nothing},
@@ -18,22 +22,42 @@ function componentsflowgraph!(
     nv == length(compsources) || throw(DimensionMismatch("compsources length ($(length(compsources))) doesn't match vertex count ($(size(adjmtx, 1)))"))
     nv == length(compsinks) || throw(DimensionMismatch("compsinks length ($(length(compsinks))) doesn't match vertex count ($(size(adjmtx, 1)))"))
 
-    setpool = objpool(pools, Dict{Int, Int})
+    setpool = objpool(pools, Dict{Int, FlowInfoWIP})
     boolpool = arraypool(pools, Bool)
     visited = fill!(borrow!(boolpool, nv), false)
-    reachablepool = arraypool(pools, Union{Dict{Int, Int}, Nothing})
+    reachablepool = arraypool(pools, Union{Dict{Int, FlowInfoWIP}, Nothing})
     reachable = fill!(borrow!(reachablepool, nv), nothing) # which sinks are reachable from this vertex
     dfspool = arraypool(pools, DFSState)
     dfs_stack = borrow!(dfspool)
     empty!(flows)
     !isnothing(subgraph) && empty!(subgraph)
+
+    # updates flows through vertex v using the flows from u and edge u->v weight (uv)
+    function updatereachable!(v::Integer, u::Integer)
+        usinks = reachable[u]
+        if isnothing(reachable[v])
+            reachable[v] = vsinks = sizehint!(empty!(borrow!(setpool)), length(usinks))
+            for (i, ui_len) in usinks
+                vsinks[i] = ui_len+1
+            end
+        else
+            vsinks = reachable[v]
+            for (i, ui_len) in usinks
+                vsinks[i] = min(get(vsinks, i, ui_len+1), ui_len+1)
+            end
+        end
+        return reachable
+    end
+
     @inbounds for v in axes(adjmtx, 2)
         (visited[v] || ispartempty(compsources, v)) && continue
         @assert isempty(dfs_stack)
         push!(dfs_stack, (v, 0))
         @assert isnothing(reachable[v])
         if !ispartempty(compsinks, v) # initialize reachable list of not-yet-visited vertices
-            reachable[v] = setindex!(empty!(borrow!(setpool)), 1, v)
+            vsinks = empty!(borrow!(setpool))
+            vsinks[v] = 0
+            reachable[v] = vsinks
         end
         while !isempty(dfs_stack)
             v, edgeitstate = dfs_stack[end]
@@ -50,19 +74,7 @@ function componentsflowgraph!(
                     # since we require that flowgraph is DAG
                     # i should not be in the current dfs stack
                     # append flow to the reachable vertex to the used_edges list
-                    if isnothing(reachable[v])
-                        reachable[v] = vsinks = sizehint!(empty!(borrow!(setpool)), length(reachable[i]))
-                        for (v, n) in reachable[i]
-                            vsinks[v] = n + 1
-                        end
-                    else
-                        vsinks = reachable[v]
-                        for (v, n) in reachable[i]
-                            if get(vsinks, v, nv + 1) > n + 1
-                                vsinks[v] = n + 1
-                            end
-                        end
-                    end
+                    updatereachable!(v, i)
                     !isnothing(subgraph) && push!(subgraph, (v => i))
                 elseif !visited[i]
                     u = i
@@ -74,13 +86,17 @@ function componentsflowgraph!(
             if u > 0 # follow v->u Diedge
                 push!(dfs_stack, (u, 0))
                 @assert isnothing(reachable[u])
-                ispartempty(compsinks, u) || (reachable[u] = setindex!(empty!(borrow!(setpool)), 1, u))
+                if !ispartempty(compsinks, u)
+                    usinks = empty!(borrow!(setpool))
+                    usinks[u] = 0
+                    reachable[u] = usinks
+                end
             else # backtrack from v
                 pop!(dfs_stack)
                 if !ispartempty(compsources, v)
                     if !isnothing(reachable[v])
-                        for (dest, n) in reachable[v]
-                            push!(flows, (v => dest, n))
+                        for (dest, vinfo) in reachable[v]
+                            push!(flows, (v => dest, FlowInfo(vinfo)))
                         end
                         # self-loop
                         !ispartempty(compsinks, v) && !isnothing(subgraph) && push!(subgraph, v => v)
@@ -90,19 +106,7 @@ function componentsflowgraph!(
                     prev, _ = dfs_stack[end]
                     if !isnothing(reachable[v])
                         !isnothing(subgraph) && push!(subgraph, prev => v)
-                        if isnothing(reachable[prev])
-                            reachable[prev] = prevsinks = sizehint!(empty!(borrow!(setpool)), length(reachable[v]))
-                            for (vv, n) in reachable[v]
-                                prevsinks[vv] = n + 1
-                            end
-                        else
-                            prevsinks = reachable[prev]
-                            for (vv, n) in reachable[v]
-                                if get(prevsinks, vv, nv + 1) > n + 1
-                                    prevsinks[vv] = n + 1
-                                end
-                            end
-                        end
+                        updatereachable!(prev, v)
                     end
                 end
             end
@@ -183,9 +187,9 @@ function expand_componentsflowgraph!(
 )
     # expand component flows into source/sink node flows
     empty!(flows)
-    @inbounds for ((i, j), n) in compflows
+    @inbounds for ((i, j), info) in compflows
         for src in compsources[i], snk in compsinks[j]
-            push!(flows, (src => snk, i => j, n))
+            push!(flows, (src => snk, i => j, info))
         end
     end
 
@@ -297,12 +301,12 @@ function nflows(
     flowlen_sum = 0
     compflowlen_sum = 0
     compflowlen_max = 0
-    @inbounds for ((compi, compj), len) in compflows
+    @inbounds for ((compi, compj), info) in compflows
         npairs = length(compsources[compi])*length(compsinks[compj])
         nvtxflows += npairs
-        flowlen_sum += npairs * len
-        compflowlen_sum += len
-        compflowlen_max = max(compflowlen_max, len)
+        flowlen_sum += npairs * info.len
+        compflowlen_sum += info.len
+        compflowlen_max = max(compflowlen_max, info.len)
     end
 
     release!(flowpool, compflows)

@@ -78,18 +78,18 @@ function export_flowgraph(
     end
 
     flows_df.flow = Vector{String}()
-    flows_df.flow_length = Vector{Int}()
-    for ((src, trg), (srccomp, trgcomp), len) in flows
+    flows_df.flowlen = Vector{Int}()
+    for ((src, trg), (srccomp, trgcomp), info) in flows
         (comp2new[srccomp] != 0) && (comp2new[trgcomp] != 0) || continue
         push!(flows_df, (source = src,
                          target = trg,
                          walkweight = threshold,
                          walkweight_rev = threshold,
                          flow = srccomp == trgcomp ? "loop" : "linear",
-                         flow_length = len))
+                         flowlen = info.len))
     end
     source_stats_df = combine(groupby(flows_df, :source)) do outedges_df
-        sinks = sort!(unique(collect(zip(outedges_df.flow_length,
+        sinks = sort!(unique(collect(zip(outedges_df.flowlen,
                                          outedges_df.target))))
         sourcesinks = sort!(unique!(outedges_df[outedges_df.flow .== "circular", :target]))
         DataFrame(flows_to = isempty(sinks) ? missing :
@@ -99,14 +99,14 @@ function export_flowgraph(
                   nloops_through = length(sourcesinks))
     end
     target_stats_df = combine(groupby(flows_df, :target)) do inedges_df
-        sources = sort!(unique(collect(zip(inedges_df.flow_length,
+        sources = sort!(unique(collect(zip(inedges_df.flowlen,
                                            inedges_df.source))))
         DataFrame(flows_from = isempty(sources) ? missing :
                                join(string.(last.(sources), '(', first.(sources),')'), ' '),
                   nflows_from = length(sources))
     end
     diedges_df.flow = missings(String, nrow(diedges_df))
-    diedges_df.flow_length = missings(Int, nrow(diedges_df))
+    diedges_df.flowlen = missings(Int, nrow(diedges_df))
     append!(diedges_df, flows_df)
     if !isnothing(orig_diedges)
         diedges_df = leftjoin(diedges_df, orig_diedges, on=[:source, :target])

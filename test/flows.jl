@@ -28,31 +28,35 @@
         @test isempty(subgraph)
 
         subgraph, flows = HHN.componentsflowgraph(adjmtx, [[1]], [[2]])
-        @test flows == [(1 => 1, 1)]
+        @test flows == [(1 => 1, HHN.FlowInfo(0))]
         @test subgraph == [1 => 1]
 
         # self-loops when the matrix doesn't have them
         subgraph, flows = HHN.componentsflowgraph(fill(0.0, (1, 1)), [[1]], [[2]])
-        @test flows == [(1 => 1, 1)]
+        @test flows == [(1 => 1, HHN.FlowInfo(0))]
         @test subgraph == [1 => 1]
     end
 
     @testset "2x2" begin
         subgraph, flows = HHN.componentsflowgraph([1 0; 0 1], [[1], [1]], [[1], []])
-        @test flows == [(1 => 1, 1)]
+        @test flows == [(1 => 1, HHN.FlowInfo(0))]
         @test subgraph == [1 => 1]
 
         subgraph, flows = HHN.componentsflowgraph([1 0; 0 1], [[1], [1]], [[1], [1]])
-        @test flows == [(1 => 1, 1), (2 => 2, 1)]
+        @test flows == [(1 => 1, HHN.FlowInfo(0)), (2 => 2, HHN.FlowInfo(0))]
         @test subgraph == [1 => 1, 2 => 2]
 
         subgraph, flows = HHN.componentsflowgraph([1 1; 0 1], [[1], [1]], [[1], [1]])
-        @test sort(flows) == [(1 => 1, 1), (2 => 1, 2), (2 => 2, 1)]
+        @test sort(flows) == [(1 => 1, HHN.FlowInfo(0)),
+                              (2 => 1, HHN.FlowInfo(1)),
+                              (2 => 2, HHN.FlowInfo(0))]
         @test sort(subgraph) == [1 => 1, 2 => 1, 2 => 2]
 
         # self-loops when there are no edges again
         subgraph, flows = HHN.componentsflowgraph([0 1; 0 0], [[1], [1]], [[1], [1]])
-        @test sort(flows) == [(1 => 1, 1), (2 => 1, 2), (2 => 2, 1)]
+        @test sort(flows) == [(1 => 1, HHN.FlowInfo(0)),
+                              (2 => 1, HHN.FlowInfo(1)),
+                              (2 => 2, HHN.FlowInfo(0))]
         @test sort(subgraph) == [1 => 1, 2 => 1, 2 => 2]
 
         subgraph, flows = HHN.componentsflowgraph([1 1; 0 1], [[1], []], [[], [1]])
@@ -60,33 +64,36 @@
         @test isempty(subgraph)
 
         subgraph, flows = HHN.componentsflowgraph([1 0; 1 1], [[1], []], [[], [1]])
-        @test flows == [(1 => 2, 2)]
+        @test flows == [(1 => 2, HHN.FlowInfo(1))]
         @test subgraph == [1 => 2]
     end
 
     @testset "3x3" begin
         subgraph, flows = HHN.componentsflowgraph([0 0 0; 1 0 0; 0 1 0], [[1], [], []], [[], [], [1]])
-        @test flows == [(1 => 3, 3)]
+        @test flows == [(1 => 3, HHN.FlowInfo(2))]
         @test sort(subgraph) == [1 => 2, 2 => 3]
 
         subgraph, flows = HHN.componentsflowgraph([0 0 0; 1 0 0; 0 1 0], [[1], [1], []], [[], [], [1]])
-        @test sort(flows) == [(1 => 3, 3), (2 => 3, 2)]
+        @test sort(flows) == [(1 => 3, HHN.FlowInfo(2)), (2 => 3, HHN.FlowInfo(1))]
         @test sort(subgraph) == [1 => 2, 2 => 3]
 
         subgraph, flows = HHN.componentsflowgraph([0 0 0; 1 0 0; 0 1 0], [[], [1], []], [[], [], [1]])
-        @test flows == [(2 => 3, 2)]
+        @test flows == [(2 => 3, HHN.FlowInfo(1))]
         @test subgraph == [2 => 3]
 
         subgraph, flows = HHN.componentsflowgraph([0 0 0; 1 0 0; 1 1 0], [[1], [], []], [[], [], [1]])
-        @test sort(flows) == [(1 => 3, 2)]
+        @test sort(flows) == [(1 => 3, HHN.FlowInfo(1))]
         @test sort(subgraph) == [1 => 2, 1 => 3, 2 => 3]
 
         subgraph, flows = HHN.componentsflowgraph([0 0 0; 1 0 1; 0 0 0], [[1], [], [1]], [[], [1], []])
-        @test sort(flows) == [(1 => 2, 2), (3 => 2, 2)]
+        @test sort(flows) == [(1 => 2, HHN.FlowInfo(1)),
+                              (3 => 2, HHN.FlowInfo(1))]
         @test sort(subgraph) == [1 => 2, 3 => 2]
 
         subgraph, flows = HHN.componentsflowgraph([0 0 0; 1 1 1; 0 0 0], [[1], [1], [1]], [[], [1], []])
-        @test sort(flows) == [(1 => 2, 2), (2 => 2, 1), (3 => 2, 2)]
+        @test sort(flows) == [(1 => 2, HHN.FlowInfo(1)),
+                              (2 => 2, HHN.FlowInfo(0)),
+                              (3 => 2, HHN.FlowInfo(1))]
         @test sort(subgraph) == [1 => 2, 2 => 2, 3 => 2]
     end
 
@@ -94,7 +101,7 @@
         subgraph, flows = HHN.componentsflowgraph([0 0 0 0; 1 0 0 0; 0 1 0 0; 0 1 0 0],
                                     [[1], [], [], []],
                                     [[], [], [1], []])
-        @test flows == [(1 => 3, 3)]
+        @test flows == [(1 => 3, HHN.FlowInfo(2))]
         @test sort(subgraph) == [1 => 2, 2 => 3]
     end
 
@@ -115,7 +122,7 @@
                                     [[], [], [1], [], []],
                                     [[1], [], [], [], []],
                                     HHN.EdgeTest{Float64}(threshold=15))
-        @test flows == [(3 => 1, 2)]
+        @test flows == [(3 => 1, HHN.FlowInfo(1))]
         @test sort(subgraph) == [2 => 1, 3 => 1, 3 => 2]
 
         @testset "with ObjectPools" begin
@@ -127,14 +134,11 @@
                                         pools)
             @test flows2 == flows
             @test subgraph2 == subgraph
-            @test haskey(pools, Vector{Bool})
-            @test pools[Vector{Bool}].nborrowed == 0
-            @test haskey(pools, Vector{HHN.DFSState})
-            @test pools[Vector{HHN.DFSState}].nborrowed == 0
-            @test haskey(pools, Dict{Int,Int})
-            @test pools[Dict{Int,Int}].nborrowed == 0
-            @test haskey(pools, Vector{Union{Dict{Int,Int},Nothing}})
-            @test pools[Vector{Union{Dict{Int,Int},Nothing}}].nborrowed == 0
+            @test haskey(pools, Vector{Bool}) && (pools[Vector{Bool}].nborrowed == 0)
+            @test haskey(pools, Vector{HHN.DFSState}) && (pools[Vector{HHN.DFSState}].nborrowed == 0)
+            @test haskey(pools, Dict{Int,HHN.FlowInfoWIP}) && (pools[Dict{Int,HHN.FlowInfoWIP}].nborrowed == 0)
+            @test haskey(pools, Vector{Union{Dict{Int,HHN.FlowInfoWIP},Nothing}}) &&
+                  (pools[Vector{Union{Dict{Int,HHN.FlowInfoWIP},Nothing}}].nborrowed == 0)
         end
     end
 end
@@ -144,8 +148,12 @@ end
     tree = HHN.scctree(adjmtx)
     subgraph, flows, conncomps = HHN.flowgraph(tree, adjmtx, [1, 4, 5, 7], [2, 4, 6],
                                            HHN.EdgeTest{Float64}(threshold=20))
-    @test sort(flows) == [(1 => 6, 4 => 5, 2), (4 => 4, 2 => 2, 1), (5 => 2, 3 => 1, 2),
-                          (5 => 6, 3 => 5, 3), (7 => 2, 1 => 1, 1), (7 => 6, 1 => 5, 2)]
+    @test sort(flows) == [(1 => 6, 4 => 5, HHN.FlowInfo(1)),
+                          (4 => 4, 2 => 2, HHN.FlowInfo(0)),
+                          (5 => 2, 3 => 1, HHN.FlowInfo(1)),
+                          (5 => 6, 3 => 5, HHN.FlowInfo(2)),
+                          (7 => 2, 1 => 1, HHN.FlowInfo(0)),
+                          (7 => 6, 1 => 5, HHN.FlowInfo(1))]
     @test sort(subgraph) == [(1 => 6, 4 => 5), (2 => 7, 1 => 1), (3 => 2, 1 => 1), (3 => 7, 1 => 1),
                              (5 => 7, 3 => 1), (7 => 3, 1 => 1), (7 => 6, 1 => 5)]
     @test HHN.nflows(tree, adjmtx, [1, 4, 5, 7], [2, 4, 6],
@@ -173,15 +181,10 @@ end
         @test flows2 == flows
         @test subgraph2 == subgraph
         @test conncomps2 == conncomps
-        @test haskey(pools, Vector{Bool})
-        @test pools[Vector{Bool}].nborrowed == 0
-        @test haskey(pools, Vector{HHN.DFSState})
-        @test pools[Vector{HHN.DFSState}].nborrowed == 0
-        @test haskey(pools, Dict{Int,Int})
-        @test pools[Set{Int}].nborrowed == 0
-        @test haskey(pools, Vector{Union{Dict{Int,Int},Nothing}})
-        @test pools[Vector{Union{Dict{Int,Int},Nothing}}].nborrowed == 0
-        @test haskey(pools, HHN.IndicesPartition)
-        @test pools[HHN.IndicesPartition].nborrowed == 0
+        @test haskey(pools, Vector{Bool}) && (pools[Vector{Bool}].nborrowed == 0)
+        @test haskey(pools, Vector{HHN.DFSState}) && (pools[Vector{HHN.DFSState}].nborrowed == 0)
+        @test haskey(pools, Dict{Int,HHN.FlowInfoWIP}) && (pools[Set{Int}].nborrowed == 0)
+        @test haskey(pools, Vector{Union{Dict{Int,HHN.FlowInfoWIP},Nothing}}) && (pools[Vector{Union{Dict{Int,HHN.FlowInfoWIP},Nothing}}].nborrowed == 0)
+        @test haskey(pools, HHN.IndicesPartition) && (pools[HHN.IndicesPartition].nborrowed == 0)
     end
 end
