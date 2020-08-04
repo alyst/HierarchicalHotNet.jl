@@ -338,3 +338,90 @@ function nflows(
     release!(ptnpool, comps)
     return res
 end
+
+"""
+Trace the random walk (given by *walk_adjmtx*) steps in the original graph
+(given by *step_adjmtx*).
+"""
+function tracesteps!(
+    stepgraph::AbstractVector{Diedge},
+    step_adjmtx::AbstractMatrix,
+    steptest::EdgeTest,
+    walk_adjmtx::AbstractMatrix,
+    walktest::EdgeTest,
+    pools::Union{ObjectPools, Nothing} = nothing;
+    maxsteps::Integer=2
+)
+    nv = size(step_adjmtx, 1)
+    nv == size(step_adjmtx, 2) ||
+        throw(DimensionMismatch("Steps adjacency matrix must be square ($(size(step_adjmtx)) given)"))
+    size(walk_adjmtx) == size(step_adjmtx) ||
+        throw(DimensionMismatch("Steps and walk adjacency matrices must have equal sizes ($(size(step_adjmtx)) and $(size(walk_adjmtx)) given)"))
+    (maxsteps > 0) || throw(ArgumentError("maxsteps must be positive ($(maxsteps) given)"))
+
+    edgesetpool = objpool(pools, Set{Pair{Int, Int}})
+    tracededges = empty!(borrow!(edgesetpool))
+
+    vtxsetpool = objpool(pools, Set{Int})
+    visited = empty!(borrow!(vtxsetpool)) # local visited vertex
+    dfspool = arraypool(pools, DFSState)
+    dfs_stack = borrow!(dfspool) # local depth-first search stack
+    @inbounds for v in axes(step_adjmtx, 2)
+        empty!(dfs_stack)
+        push!(dfs_stack, (v, 0))
+        empty!(visited)
+        push!(visited, v)
+        walkedges = view(walk_adjmtx, :, v)
+
+        while !isempty(dfs_stack)
+            w, edgeitstate = dfs_stack[end]
+            @assert edgeitstate >= 0
+            edgeit = outedges(step_adjmtx, w, steptest)
+
+            # pick the edge to follow
+            u = 0
+            while true
+                iter = iterate(edgeit, edgeitstate)
+                isnothing(iter) && break
+                (i, _), edgeitstate = iter
+                if !(i in visited)
+                    # update w edges iterator
+                    dfs_stack[end] = w, edgeitstate
+                    u = i
+                    break
+                end
+            end
+            if u > 0 # follow v->u Diedge
+                # v -...-> u path is present in the walk graph, add its
+                # steps to the result
+                if isvalidedge(walkedges[u], walktest)
+                    for i in 2:length(dfs_stack)
+                        push!(tracededges, dfs_stack[i-1][1] => dfs_stack[i][1])
+                    end
+                    push!(tracededges, dfs_stack[end][1] => u)
+                end
+                # if v -..-> u path has not reached maximum length, continue DFS
+                if length(dfs_stack) < maxsteps
+                    push!(dfs_stack, (u, 0))
+                    push!(visited, u)
+                end
+            else # backtrack from v
+                pop!(dfs_stack)
+            end
+        end
+    end
+    # fill the stepgraph with traced steps
+    empty!(stepgraph)
+    for step in tracededges
+        push!(stepgraph, step)
+    end
+    release!(dfspool, dfs_stack)
+    release!(edgesetpool, tracededges)
+    release!(vtxsetpool, visited)
+    return stepgraph
+end
+
+tracesteps(step_adjmtx::AbstractMatrix, steptest::EdgeTest,
+           walk_adjmtx::AbstractMatrix, walktest::EdgeTest,
+           pools::Union{ObjectPools, Nothing} = nothing; kwargs...) =
+    tracesteps!(Vector{Diedge}(), step_adjmtx, steptest, walk_adjmtx, walktest, pools; kwargs...)

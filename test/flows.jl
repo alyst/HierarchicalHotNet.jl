@@ -189,3 +189,31 @@ end
         @test haskey(pools, HHN.IndicesPartition) && (pools[HHN.IndicesPartition].nborrowed == 0)
     end
 end
+
+@testset "tracesteps()" begin
+    @testset "trivial" begin
+        @test_throws DimensionMismatch HHN.tracesteps(fill(0.0, (1, 2)), HHN.EdgeTest{Float64}(threshold=0.5),
+                                                      fill(0.0, (1, 2)), HHN.EdgeTest{Float64}(threshold=0.5))
+        @test_throws DimensionMismatch HHN.tracesteps(fill(0.0, (1, 1)), HHN.EdgeTest{Float64}(threshold=0.5),
+                                                      fill(0.0, (2, 2)), HHN.EdgeTest{Float64}(threshold=0.5))
+
+        @test HHN.tracesteps(fill(0.25, (1, 1)), HHN.EdgeTest{Float64}(threshold=0.5),
+                             fill(0.5, (1, 1)), HHN.EdgeTest{Float64}(threshold=0.5)) == Vector{HHN.Diedge}()
+        @test HHN.tracesteps(fill(0.25, (1, 1)), HHN.EdgeTest{Float64}(threshold=0.25),
+                             fill(0.5, (1, 1)), HHN.EdgeTest{Float64}(threshold=0.75)) == Vector{HHN.Diedge}()
+        @test HHN.tracesteps(fill(0.25, (1, 1)), HHN.EdgeTest{Float64}(threshold=0.25),
+                             fill(0.5, (1, 1)), HHN.EdgeTest{Float64}(threshold=0.5)) == Vector{HHN.Diedge}() # the flow exist, but we don't create loop edges
+    end
+
+    @testset "simple" begin
+        stepmtx = [0.0 0.0 0.0; 1.0 0.0 0.0; 0.0 1.0 0.0]
+        walkmtx = [0.0 0.0 0.0; 0.0 0.0 0.0; 1.0 0.0 0.0]
+        @test HHN.tracesteps(stepmtx, HHN.EdgeTest{Float64}(threshold=0.5),
+                             walkmtx, HHN.EdgeTest{Float64}(threshold=0.5)) == [1 => 2, 2 => 3]
+
+        stepmtx = [0.0 0.0 0.0; 1.0 0.0 0.0; 1.0 1.0 0.0]
+        walkmtx = [0.0 0.0 0.0; 0.0 0.0 0.0; 1.0 0.0 0.0]
+        @test HHN.tracesteps(stepmtx, HHN.EdgeTest{Float64}(threshold=0.5),
+                             walkmtx, HHN.EdgeTest{Float64}(threshold=0.5)) == [1 => 3, 1 => 2, 2 => 3]
+    end
+end
