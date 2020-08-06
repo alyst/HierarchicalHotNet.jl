@@ -306,7 +306,7 @@ const treecut_metrics = [
     :topn_nsources, :topn_nsinks,
     :ncompsources, :ncompsinks,
     :nflows, :ncompflows, :flow_avglen, :compflow_avglen,
-    :flow_distance, :compflow_distance]
+    :flow_avgweight, :compflow_avgweight]
 
 function bin_treecut_stats(
     cutstats_df::AbstractDataFrame;
