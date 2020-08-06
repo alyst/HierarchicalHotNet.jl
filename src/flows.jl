@@ -307,8 +307,18 @@ function nflows(
     @inbounds for ((compi, compj), info) in compflows
         npairs = length(compsources[compi])*length(compsinks[compj])
         nvtxflows += npairs
+
+        cur_floweight_sum = 0.0 # all pairwise flows between the vertices of current components
+        for src in compsources[compi]
+            src_flows = view(adjmtx, :, src)
+            for snk in compsinks[compj]
+                floweight = src_flows[snk]
+                cur_floweight_sum += floweight
+            end
+        end
+        floweight_sum += cur_floweight_sum
         flowlen_sum += npairs * info.len
-        floweight_sum += npairs * info.weight
+
         compflowlen_sum += info.len
         compfloweight_sum += info.weight
         compflowlen_max = max(compflowlen_max, info.len)

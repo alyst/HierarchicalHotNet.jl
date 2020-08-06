@@ -159,7 +159,7 @@ end
     @test HHN.nflows(tree, adjmtx, [1, 4, 5, 7], [2, 4, 6],
                      HHN.EdgeTest{Float64}(threshold=20)) == (nflows=6, ncompflows=6,
                                                               flowlen_sum=5, compflowlen_sum=5, compflowlen_max=2,
-                                                              floweight_sum = 141.0, compfloweight_sum = 141.0,
+                                                              floweight_sum = 46.0, compfloweight_sum = 141.0,
                                                               ncompsources=4, ncompsinks=3)
 
     @testset "Flows only" begin
