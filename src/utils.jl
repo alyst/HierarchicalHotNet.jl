@@ -90,6 +90,14 @@ function (ecdf::EmCDF{T, W})(x::Real) where {T, W}
     end
 end
 
+function (ecdf::EmCDF{T, W})(x::AbstractVector) where {T, W}
+    res = similar(x, W)
+    @inbounds for i in eachindex(x)
+        res[i] = i == 1 || x[i] != x[i-1] ? ecdf(x[i]) : res[i-1]
+    end
+    return res
+end
+
 function ecdf(X::AbstractVector{<:Real}; weights::Union{Nothing, AbstractVector{<:Real}}=nothing)
     any(isnan, X) && throw(ArgumentError("ecdf can not include NaN values"))
     evenweights = isnothing(weights) || isempty(weights)
