@@ -167,9 +167,9 @@ function treecut_stats(tree::SCCTree,
             @warn "To count source-sink flows, walkmatrix must be specified"
             nflows_v = nothing
         else
-            iwalkmatrix, weights = indexvalues!(borrow!(arraypool(pools, Int32), size(walkmatrix)),
-                                            borrow!(arraypool(pools, eltype(walkmatrix))),
-                                            walkmatrix, EdgeTest{eltype(walkmatrix)}(rev=tree.rev))
+            #iwalkmatrix, weights = indexvalues!(borrow!(arraypool(pools, Int32), size(walkmatrix)),
+            #                                borrow!(arraypool(pools, eltype(walkmatrix))),
+            #                                walkmatrix, EdgeTest{eltype(walkmatrix)}(rev=tree.rev))
             nflows_v = Vector{Int}()
             ncompflows_v = Vector{Int}()
             ncompsources_v = Vector{Int}()
@@ -178,12 +178,12 @@ function treecut_stats(tree::SCCTree,
             flow_avgweight_v = Vector{Float64}()
             compflow_avglen_v = Vector{Float64}()
             compflow_avgweight_v = Vector{Float64}()
-            if !isempty(tree.thresholds)
-                iminthresh = searchsortedfirst(weights, first(tree.thresholds))
-                imaxthresh = searchsortedfirst(weights, last(tree.thresholds))
-            else
-                iminthresh = imaxthresh = 0
-            end
+            #if !isempty(tree.thresholds)
+            #    iminthresh = searchsortedfirst(weights, first(tree.thresholds))
+            #    imaxthresh = searchsortedfirst(weights, last(tree.thresholds))
+            #else
+            #    iminthresh = imaxthresh = 0
+            #end
         end
     else
         nflows_v = nothing
@@ -214,8 +214,8 @@ function treecut_stats(tree::SCCTree,
             if (lastcompsquares == 0) || (i == length(tree.thresholds)) ||
                (compsquares/lastcompsquares <= nflows_ratio)
                 lastcompsquares = compsquares
-                ithresh = searchsortedfirst(weights, thresh)
-                @assert (ithresh <= length(weights)) && (weights[ithresh] == thresh)
+                #ithresh = searchsortedfirst(weights, thresh)
+                #@assert (ithresh <= length(weights)) && (weights[ithresh] == thresh)
                 foreach(sort!, comps) # sorting improves condense!(iwalkmatrix) performace
                 flowstats =
                     nflows(comps, walkmatrix, sources, sinks, EdgeTest{eltype(walkmatrix)}(threshold=thresh), pools)
@@ -291,8 +291,8 @@ function treecut_stats(tree::SCCTree,
         res.flow_avgweight_qtl = walkmatrix_cdf(res.flow_avgweight)
         res.compflow_avgweight_qtl = walkmatrix_cdf(res.compflow_avgweight)
 
-        release!(arraypool(pools, Int32), iwalkmatrix)
-        release!(arraypool(pools, eltype(walkmatrix)), weights)
+        #release!(arraypool(pools, Int32), iwalkmatrix)
+        #release!(arraypool(pools, eltype(walkmatrix)), weights)
     end
 
     release!(ptnpool, comps_nontriv)
