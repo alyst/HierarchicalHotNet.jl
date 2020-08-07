@@ -98,10 +98,10 @@ function (ecdf::EmCDF{T, W})(x::AbstractVector) where {T, W}
     return res
 end
 
-function ecdf(X::AbstractVector{<:Real}; weights::Union{Nothing, AbstractVector{<:Real}}=nothing)
+function ecdf(X::AbstractVector{<:Real}, weights::Union{Nothing, AbstractVector{<:Real}}=nothing)
     any(isnan, X) && throw(ArgumentError("ecdf can not include NaN values"))
     evenweights = isnothing(weights) || isempty(weights)
-    evenweights || length(X) == length(weights) ||
+    evenweights || (length(X) == length(weights)) ||
         throw(ArgumentError("data and weight vectors must be the same size," *
                             "got $(length(X)) and $(length(weights))"))
     T = eltype(X)
