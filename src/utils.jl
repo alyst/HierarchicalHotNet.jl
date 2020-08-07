@@ -118,7 +118,8 @@ function ecdf(X::AbstractVector{<:Real}; weights::Union{Nothing, AbstractVector{
         newval = X[pos]
         if val != newval
             # new value
-            push!(sorted_values, (val, cdf_unscaled/cdf_scale, inv(newval - val), cdf_unscaled_delta/cdf_scale))
+            push!(sorted_values, (val, min(cdf_unscaled/cdf_scale, one(W)),
+                                  inv(newval - val), cdf_unscaled_delta/cdf_scale))
             val = newval
             cdf_unscaled += cdf_unscaled_delta
             cdf_unscaled_delta = zero(W0)
