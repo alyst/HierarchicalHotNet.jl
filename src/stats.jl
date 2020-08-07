@@ -170,7 +170,7 @@ function treecut_stats(tree::SCCTree,
             iwalkmatrix, weights = indexvalues!(borrow!(arraypool(pools, Int32), size(walkmatrix)),
                                             borrow!(arraypool(pools, eltype(walkmatrix))),
                                             walkmatrix, EdgeTest{eltype(walkmatrix)}(rev=tree.rev))
-            walkmatrix_cdf = StatsBase.ecdf(vec(walkmatrix))
+            walkmatrix_cdf = HierarchicalHotNet.ecdf(vec(walkmatrix))
             nflows_v = Vector{Int}()
             ncompflows_v = Vector{Int}()
             ncompsources_v = Vector{Int}()
