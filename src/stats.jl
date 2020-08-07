@@ -170,17 +170,14 @@ function treecut_stats(tree::SCCTree,
             iwalkmatrix, weights = indexvalues!(borrow!(arraypool(pools, Int32), size(walkmatrix)),
                                             borrow!(arraypool(pools, eltype(walkmatrix))),
                                             walkmatrix, EdgeTest{eltype(walkmatrix)}(rev=tree.rev))
-            walkmatrix_cdf = HierarchicalHotNet.ecdf(vec(walkmatrix))
             nflows_v = Vector{Int}()
             ncompflows_v = Vector{Int}()
             ncompsources_v = Vector{Int}()
             ncompsinks_v = Vector{Int}()
             flow_avglen_v = Vector{Float64}()
             flow_avgweight_v = Vector{Float64}()
-            flow_avgweight_qtl_v = Vector{Float64}()
             compflow_avglen_v = Vector{Float64}()
             compflow_avgweight_v = Vector{Float64}()
-            compflow_avgweight_qtl_v = Vector{Float64}()
             if !isempty(tree.thresholds)
                 iminthresh = searchsortedfirst(weights, first(tree.thresholds))
                 imaxthresh = searchsortedfirst(weights, last(tree.thresholds))
@@ -232,9 +229,7 @@ function treecut_stats(tree::SCCTree,
                 push!(flow_avglen_v, flowstats.flowlen_sum/flowstats.nflows)
                 push!(compflow_avglen_v, flowstats.compflowlen_sum/flowstats.ncompflows)
                 push!(flow_avgweight_v, flowstats.floweight_sum / nvtxflows_max)
-                push!(flow_avgweight_qtl_v, walkmatrix_cdf(last(flow_avgweight_v)))
                 push!(compflow_avgweight_v, flowstats.compfloweight_sum / ncompflows_max)
-                push!(compflow_avgweight_qtl_v, walkmatrix_cdf(last(compflow_avgweight_v)))
             else # duplicate the last nflows
                 push!(ncompsources_v, last(ncompsources_v))
                 push!(ncompsinks_v, last(ncompsinks_v))
@@ -243,9 +238,7 @@ function treecut_stats(tree::SCCTree,
                 push!(flow_avglen_v, last(flow_avglen_v))
                 push!(compflow_avglen_v, last(compflow_avglen_v))
                 push!(flow_avgweight_v, last(flow_avgweight_v))
-                push!(flow_avgweight_qtl_v, last(flow_avgweight_qtl_v))
                 push!(compflow_avgweight_v, last(compflow_avgweight_v))
-                push!(compflow_avgweight_qtl_v, last(compflow_avgweight_qtl_v))
             end
         end
         if vertex_stats !== nothing
@@ -292,9 +285,12 @@ function treecut_stats(tree::SCCTree,
         res.flow_avglen = flow_avglen_v
         res.compflow_avglen = compflow_avglen_v
         res.flow_avgweight = flow_avgweight_v
-        res.flow_avgweight_qtl = flow_avgweight_qtl_v
         res.compflow_avgweight = compflow_avgweight_v
-        res.compflow_avgweight_qtl = compflow_avgweight_qtl_v
+        # calculate avgweight quantiles
+        walkmatrix_cdf = HierarchicalHotNet.ecdf(vec(walkmatrix))
+        res.flow_avgweight_qtl = walkmatrix_cdf(res.flow_avgweight)
+        res.compflow_avgweight_qtl = walkmatrix_cdf(res.compflow_avgweight)
+
         release!(arraypool(pools, Int32), iwalkmatrix)
         release!(arraypool(pools, eltype(walkmatrix)), weights)
     end
