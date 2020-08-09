@@ -287,9 +287,9 @@ function treecut_stats(tree::SCCTree,
         res.flow_avgweight = flow_avgweight_v
         res.compflow_avgweight = compflow_avgweight_v
         # calculate avgweight quantiles
-        walkmatrix_cdf = HierarchicalHotNet.ecdf(vec(walkmatrix))
-        res.flow_avgweight_qtl = walkmatrix_cdf(res.flow_avgweight)
-        res.compflow_avgweight_qtl = walkmatrix_cdf(res.compflow_avgweight)
+        walkmatrix_cdf = HierarchicalHotNet.ecdf(vec(walkmatrix), nothing, true)
+        res.flow_avgweight_qtl = walkmatrix_cdf.(res.flow_avgweight)
+        res.compflow_avgweight_qtl = walkmatrix_cdf.(res.compflow_avgweight)
 
         #release!(arraypool(pools, Int32), iwalkmatrix)
         #release!(arraypool(pools, eltype(walkmatrix)), weights)
