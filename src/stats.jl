@@ -178,6 +178,8 @@ function treecut_stats(tree::SCCTree,
             flow_avgweight_v = Vector{Float64}()
             compflow_avglen_v = Vector{Float64}()
             compflow_avgweight_v = Vector{Float64}()
+            flow_dist_v = Vector{Float64}()
+            compflow_dist_v = Vector{Float64}()
             #if !isempty(tree.thresholds)
             #    iminthresh = searchsortedfirst(weights, first(tree.thresholds))
             #    imaxthresh = searchsortedfirst(weights, last(tree.thresholds))
@@ -230,6 +232,8 @@ function treecut_stats(tree::SCCTree,
                 push!(compflow_avglen_v, flowstats.compflowlen_sum/flowstats.ncompflows)
                 push!(flow_avgweight_v, flowstats.floweight_sum / nvtxflows_max)
                 push!(compflow_avgweight_v, flowstats.compfloweight_sum / ncompflows_max)
+                push!(flow_dist_v, ((nvtxflows_max - flowstats.nflows) * (length(comps) + 1) + flowstats.flowlen_sum) / nvtxflows_max)
+                push!(compflow_dist_v, ((ncompflows_max - flowstats.ncompflows) * (length(comps) + 1) + flowstats.compflowlen_sum) / ncompflows_max)
             else # duplicate the last nflows
                 push!(ncompsources_v, last(ncompsources_v))
                 push!(ncompsinks_v, last(ncompsinks_v))
@@ -239,6 +243,8 @@ function treecut_stats(tree::SCCTree,
                 push!(compflow_avglen_v, last(compflow_avglen_v))
                 push!(flow_avgweight_v, last(flow_avgweight_v))
                 push!(compflow_avgweight_v, last(compflow_avgweight_v))
+                push!(flow_dist_v, last(flow_dist_v))
+                push!(compflow_dist_v, last(compflow_dist_v))
             end
         end
         if vertex_stats !== nothing
@@ -286,6 +292,8 @@ function treecut_stats(tree::SCCTree,
         res.compflow_avglen = compflow_avglen_v
         res.flow_avgweight = flow_avgweight_v
         res.compflow_avgweight = compflow_avgweight_v
+        res.flow_distance = flow_dist_v
+        res.compflow_distance = compflow_dist_v
         # calculate avgweight quantiles
         # prepare vertex of weights for ECDF
         # the matrix has a lot of zeros, so to help sorting, we compress them into single entry
@@ -330,7 +338,8 @@ const treecut_metrics = [
     :ncompsources, :ncompsinks,
     :nflows, :ncompflows, :flow_avglen, :compflow_avglen,
     :flow_avgweight, :flow_avgweight_qtl,
-    :compflow_avgweight, :compflow_avgweight_qtl]
+    :compflow_avgweight, :compflow_avgweight_qtl,
+    :flow_distance, :compflow_distance]
 
 function bin_treecut_stats(
     cutstats_df::AbstractDataFrame;
