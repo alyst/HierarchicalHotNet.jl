@@ -187,17 +187,17 @@ function export_flowgraph(
         if hasproperty(edge_df, :is_original)
             res[!, :has_original] .= any(r -> r.is_original && !r.is_reverse, eachrow(edge_df))
             res[!, :has_original_rev] .= any(r -> r.is_original && r.is_reverse, eachrow(edge_df))
+            orig1st = findfirst(r -> r.is_original && !r.is_reverse, eachrow(edge_df))
+            orig1st_rev = findfirst(r -> r.is_original && r.is_reverse, eachrow(edge_df))
+        else
+            orig1st = orig1st_rev = nothing
         end
         if hasproperty(edge_df, :diedge_type)
-            orig1st = findfirst(r -> r.is_original && !r.is_reverse, eachrow(edge_df))
-            res[!, :has_original] .= !isnothing(orig1st)
             res[!, :target_type] .= isnothing(orig1st) ? missing : edge_df.diedge_type[orig1st]
-            if hasproperty(edge_df, :interaction_type)
-                res[!, :interaction_type] .= isnothing(orig1st) ? missing : edge_df.interaction_type[orig1st]
-            end
-            orig1st_rev = findfirst(r -> r.is_original && r.is_reverse, eachrow(edge_df))
-            res[!, :has_original_rev] .= !isnothing(orig1st_rev)
             res[!, :source_type] .= isnothing(orig1st_rev) ? missing : edge_df.diedge_type[orig1st_rev]
+        end
+        if hasproperty(edge_df, :interaction_type)
+            res[!, :interaction_type] .= isnothing(orig1st) ? missing : edge_df.interaction_type[orig1st]
         end
         if !flow_edges && !any(res.has_walk)
             return filter!(r -> false, res) # pure flows are not exported
