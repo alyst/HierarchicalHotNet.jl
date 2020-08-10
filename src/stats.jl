@@ -372,6 +372,12 @@ function bin_treecut_stats(
     return binstats_df
 end
 
+quantile_suffix(q::Real) =
+    reduce(replace, init=@sprintf("%02.1f", 100*q),
+           [r"\.0$" => "",
+            r"^(\d)\." => s"0\1",
+            r"\.(\d)" => s"\1"])
+
 function aggregate_treecut_binstats(
     binstats_df::AbstractDataFrame;
     by_cols::Union{AbstractVector{Symbol}, Symbol, Nothing} = nothing,
@@ -400,9 +406,7 @@ function aggregate_treecut_binstats(
 
     aggstats_df = combine(groupby(binstats_df, used_by_cols),
                      [col => (x -> any(x -> ismissing(x) || isnan(x), x) ? NaN : quantile(x, qtl)) =>
-                      Symbol(col, reduce(replace, init=@sprintf("_%02.1f", 100*qtl),
-                                         [r"\.0$" => "", r"_(\d)\." => s"_0\1",
-                                          r"\.(\d)" => s"\1"]))
+                      Symbol(col, "_", quantile_suffix(qtl))
                       for col in stat_cols, qtl in used_quantiles]...)
     leftjoin(aggstats_df, thresholds_df, on=:threshold_bin)
 end
