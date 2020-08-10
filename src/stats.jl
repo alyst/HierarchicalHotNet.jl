@@ -414,15 +414,18 @@ end
 function extreme_treecut_binstats(
     binstats_df::AbstractDataFrame,
     perm_aggstats_df::AbstractDataFrame;
-    join_cols::AbstractVector{Symbol} = [:threshold, :threshold_bin],
+    extra_join_cols::Union{Nothing, AbstractVector{Symbol}} = nothing,
     stat_cols::AbstractVector{Symbol} = intersect(treecut_metrics, propertynames(binstats_df))
 )
     perm_agg_cols_mask = occursin.(Ref(Regex(string("^", join(treecut_metrics, "|")))),
                                    String.(propertynames(perm_aggstats_df)))
+    join_cols = [:threshold, :threshold_bin]
+    isnothing(extra_join_cols) || unique!(append!(join_cols, extra_join_cols))
     joinstats_df = leftjoin(select(binstats_df, [join_cols; stat_cols]),
                             select(perm_aggstats_df, [join_cols; propertynames(perm_aggstats_df)[perm_agg_cols_mask]]),
                             on=join_cols)
-    by_cols = filter(col -> (col != :threshold) && (col != :threshold_bin), join_cols)
+    by_cols = Symbol[]
+    isnothing(extra_join_cols) || unique!(append!(by_cols, extra_join_cols))
     combine(groupby(joinstats_df, by_cols)) do df
         hcat(DataFrame(type = ["min", "max"]), # should match inner for
         reduce(hcat, [begin
