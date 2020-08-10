@@ -404,10 +404,14 @@ function aggregate_treecut_binstats(
     unique!(used_by_cols)
     deleteat!(used_by_cols, findall(==(:threshold), used_by_cols))
 
-    aggstats_df = combine(groupby(binstats_df, used_by_cols),
-                     [col => (x -> any(x -> ismissing(x) || isnan(x), x) ? NaN : quantile(x, qtl)) =>
-                      Symbol(col, "_", quantile_suffix(qtl))
-                      for col in stat_cols, qtl in used_quantiles]...)
+    binstats_df_grouped = groupby(binstats_df, used_by_cols)
+    aggstats_df = reduce(vcat, [begin
+        res = combine(binstats_df_grouped,
+                      [col => (x -> any(x -> ismissing(x) || isnan(x), x) ? NaN : quantile(x, qtl)) => col
+                       for col in stat_cols]...)
+        res[!, :quantile] .= qtl
+        res
+    end for qtl in used_quantiles])
     leftjoin(aggstats_df, thresholds_df, on=:threshold_bin)
 end
 
@@ -417,30 +421,32 @@ function extreme_treecut_binstats(
     extra_join_cols::Union{Nothing, AbstractVector{Symbol}} = nothing,
     stat_cols::AbstractVector{Symbol} = intersect(treecut_metrics, propertynames(binstats_df))
 )
-    perm_agg_cols_mask = occursin.(Ref(Regex(string("^", join(treecut_metrics, "|")))),
-                                   String.(propertynames(perm_aggstats_df)))
+    perm_aggstats_cols = intersect(treecut_metrics, propertynames(perm_aggstats_df))
     join_cols = [:threshold, :threshold_bin]
     isnothing(extra_join_cols) || unique!(append!(join_cols, extra_join_cols))
     joinstats_df = leftjoin(select(binstats_df, [join_cols; stat_cols]),
-                            select(perm_aggstats_df, [join_cols; propertynames(perm_aggstats_df)[perm_agg_cols_mask]]),
-                            on=join_cols)
-    by_cols = Symbol[]
+                            select(perm_aggstats_df, [join_cols; :quantile; perm_aggstats_cols]),
+                            on=join_cols, makeunique=true)
+    by_cols = [:quantile]
     isnothing(extra_join_cols) || unique!(append!(by_cols, extra_join_cols))
     combine(groupby(joinstats_df, by_cols)) do df
-        hcat(DataFrame(type = ["min", "max"]), # should match inner for
-        reduce(hcat, [begin
-            perm50_col = Symbol(col, "_50")
-            deltas = [ismissing(r[col]) || ismissing(r[perm50_col]) ? 0.0 :
-                      r[col] - r[perm50_col]
-                      for r in eachrow(df)]
-            reduce(vcat, [DataFrame(
-                col => df[delta_pos, col],
-                Symbol(col, "_perm_50") => df[delta_pos, perm50_col],
-                Symbol(col, "_delta") => delta_val,
-                Symbol(col, "_threshold_bin") => df.threshold_bin[delta_pos],
-                Symbol(col, "_threshold") => df.threshold[delta_pos]
-                ) for (delta_val, delta_pos) in [findmin(deltas), findmax(deltas)]
-            ])
-        end for col in stat_cols]))
+        reduce(vcat, [begin
+            perm_col = Symbol(col, "_1")
+            res = reduce(vcat, [begin
+                deltas = [ismissing(r[col]) || ismissing(r[perm_col]) ? 0.0 : r[col] - r[perm_col]
+                          for r in eachrow(df)]
+                delta_val, delta_pos = aggfun(deltas)
+                DataFrame(
+                    :metric => col,
+                    :value => df[delta_pos, col],
+                    :value_type => aggtype,
+                    :permuted_value => df[delta_pos, perm_col],
+                    :delta => delta_val,
+                    :threshold_bin => df.threshold_bin[delta_pos],
+                    :threshold => df.threshold[delta_pos]
+                )
+            end for (aggtype, aggfun) in ["min_delta" => findmin, "max_delta" => findmax]])
+            res
+        end for col in stat_cols])
     end
 end
