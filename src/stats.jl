@@ -39,7 +39,7 @@ function vertex_stats(weights::AbstractVector{<:Number},
     (length(weights) == size(walkpermweights, 1)) ||
         throw(DimensionMismatch("Weights length ($(length(weights))) doesn't match the permuted random walk weights length $(size(walkpermweights, 1))"))
     (size(permweights, 2) == size(walkpermweights, 2)) ||
-        throw(DimensionMismatch("Weights permutations count ($(size(permweights, 2))) doesn't match the after-walk permutations count $(size(walkpermweights, 2))"))
+        throw(DimensionMismatch("Weights permutations count ($(size(permweights, 2))) doesn't match the random walk permutations count $(size(walkpermweights, 2))"))
 
     res = _graph_stats!(DataFrame(vertex = eachindex(weights)),
                         weights, walkweights, permweights, walkpermweights)
