@@ -41,8 +41,7 @@ indexvalues(::Type{I}, A::AbstractArray{T}, test::EdgeTest{T} = EdgeTest{T}();
             kwargs...) where {T, I <: Integer} =
     indexvalues!(similar(A, I), Vector{T}(), A, test; kwargs...)
 
-empty_adjacencymatrix(::Type{M},
-                      element_type::Type{T} = eltype(M)) where {M <: AbstractMatrix, T} =
+empty_adjacencymatrix(::Type{M}, ::Type{T} = eltype(M)) where {M <: AbstractMatrix, T} =
     Matrix{T}(undef, (0, 0))
 
 subgraph_adjacencymatrix(adjmtx::AbstractMatrix, comp_indices::AbstractVector{<:Integer},
