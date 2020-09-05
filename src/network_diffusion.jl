@@ -24,24 +24,26 @@ stationary distribution of visiting probabilities of a random walk with restart.
 """
 random_walk_matrix(g::AbstractSimpleWeightedGraph,
                    restart_probability::Number=0.1;
-                   normalize_weights::Bool=true) =
-    random_walk_matrix(Matrix(stepmatrix(g, normalize_weights=normalize_weights)),
+                   stepmtx_kwargs...) =
+    random_walk_matrix(Matrix(stepmatrix(g; stepmtx_kwargs...)),
                        restart_probability)
 
 function random_walk_matrix(adjmtx::AbstractMatrix,
-                            restart_probability::Number = 0.1)
+                            restart_probability::Number)
+    (0 <= restart_probability <= 1) ||
+        throw(DomainError(restart_probability, "restart_probability should be in [0, 1] range"))
     check_square(adjmtx, "Adjacency matrix")
     return restart_probability * inv(
-            diagm(0 => fill(1.0, size(adjmtx, 1))) -
+            Diagonal(I, size(adjmtx, 1)) -
             (1-restart_probability) * adjmtx)
 end
 
-function similarity_matrix(g::AbstractSimpleWeightedGraph,
-                           node_weights::AbstractVector;
-                           restart_probability::Number = 0.1)
-    return random_walk_matrix(g, restart_probability) *
-           Diagonal(node_weights)
-end
+similarity_matrix(g::Union{AbstractMatrix, AbstractSimpleWeightedGraph},
+    node_weights::AbstractVector;
+    restart_probability::Union{Number, Nothing} = nothing,
+    stepmtx_kwargs...) =
+        random_walk_matrix(g, restart_probability; stepmtx_kwargs...) *
+        Diagonal(node_weights)
 
 function neighborhood_weights(adjmtx::AbstractMatrix, g::AbstractGraph)
     check_square(adjmtx, "Adjacency matrix")
