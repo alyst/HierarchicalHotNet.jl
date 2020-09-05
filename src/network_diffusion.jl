@@ -6,9 +6,11 @@ function stepmatrix(adjmtx::AbstractMatrix{<:Number};
     check_square(adjmtx, "Adjacency matrix")
     adj_mtx = copy(adjmtx)
     if normalize_weights
-        node_degs = sum(adj_mtx, dims=1)
-        node_degs[node_degs .== 0] .= 1
-        adj_mtx ./= node_degs
+        node_scales = dropdims(sum(adj_mtx, dims=1), dims=1)
+        @inbounds for (i, w) in enumerate(node_scales)
+            node_scales[i] = ifelse(w == 0, 1.0, inv(w))
+        end
+        rmul!(adj_mtx, Diagonal(node_scales))
     end
     return adj_mtx
 end
