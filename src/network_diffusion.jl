@@ -2,9 +2,12 @@
 Construct the step matrix for the random walk.
 """
 function stepmatrix(adjmtx::AbstractMatrix{<:Number};
-                     normalize_weights::Bool=true)
+                    inedge_weights::Union{AbstractVector, Nothing} = nothing,
+                    normalize_weights::Bool=true)
     check_square(adjmtx, "Adjacency matrix")
-    adj_mtx = copy(adjmtx)
+    adj_mtx = !isnothing(inedge_weights) ?
+        Diagonal(inedge_weights) * adjmtx :
+        copy(adjmtx)
     if normalize_weights
         node_scales = dropdims(sum(adj_mtx, dims=1), dims=1)
         @inbounds for (i, w) in enumerate(node_scales)
