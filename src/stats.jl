@@ -1,3 +1,33 @@
+function _graph_stats!(res::AbstractDataFrame,
+    weights::AbstractArray{<:Number, N},
+    walkweights::AbstractArray{<:Number, N},
+    permweights::AbstractArray{<:Number},
+    walkpermweights::AbstractArray{<:Number}
+) where N
+    permw_mtx = reshape(permweights, (prod(size(permweights)[1:N]), size(permweights, N+1)))
+    permwalkw_mtx = reshape(walkpermweights, (prod(size(walkpermweights)[1:N]), size(permweights, N+1)))
+    res.weight = copy(weights) |> vec
+    res.permweight_mean = mean(permw_mtx, dims=2) |> vec
+    res.permweight_std = std(permw_mtx, dims=2) |> vec
+    res.permweight_median = median(permw_mtx, dims=2) |> vec
+    res.permweight_mad = [mad(weights) for weights in eachrow(permw_mtx)]
+    res.walkweight = copy(walkweights) |> vec
+    res.walkpermweight_mean = mean(permwalkw_mtx, dims=2) |> vec
+    res.walkpermweight_std = std(permwalkw_mtx, dims=2) |> vec
+    res.walkpermweight_median = median(permwalkw_mtx, dims=2) |> vec
+    res.walkpermweight_mad = [mad(walkweights) for walkweights in eachrow(permwalkw_mtx)]
+    res.walkweight_delta = res.walkweight - res.walkpermweight_median
+    res.nless_weight = [sum(>(w), permw)
+                        for (w, permw) in zip(res.weight, eachrow(permw_mtx))]
+    res.ngreater_weight = [sum(<(w), permw)
+                           for (w, permw) in zip(res.weight, eachrow(permw_mtx))]
+    res.nless_walkweight = [sum(>(w), permw)
+                            for (w, permw) in zip(res.walkweight, eachrow(permwalkw_mtx))]
+    res.ngreater_walkweight = [sum(<(w), permw)
+                               for (w, permw) in zip(res.walkweight, eachrow(permwalkw_mtx))]
+    return res
+end
+
 function vertex_stats(weights::AbstractVector{<:Number},
                       walkweights::AbstractVector{<:Number},
                       permweights::AbstractMatrix{<:Number},
@@ -5,31 +35,14 @@ function vertex_stats(weights::AbstractVector{<:Number},
     (length(weights) == size(permweights, 1)) ||
         throw(DimensionMismatch("Original weights length ($(length(weights))) doesn't match the permuted weights length $(size(permweights, 1))"))
     (length(weights) == length(walkweights)) ||
-        throw(DimensionMismatch("Weights length ($(length(weights))) doesn't match the after-walk weights length $(length(walkweights))"))
+        throw(DimensionMismatch("Weights length ($(length(weights))) doesn't match the random walk weights length $(length(walkweights))"))
     (length(weights) == size(walkpermweights, 1)) ||
-        throw(DimensionMismatch("Weights length ($(length(weights))) doesn't match the permuted after-walk weights length $(size(walkpermweights, 1))"))
+        throw(DimensionMismatch("Weights length ($(length(weights))) doesn't match the permuted random walk weights length $(size(walkpermweights, 1))"))
     (size(permweights, 2) == size(walkpermweights, 2)) ||
         throw(DimensionMismatch("Weights permutations count ($(size(permweights, 2))) doesn't match the after-walk permutations count $(size(walkpermweights, 2))"))
 
-    res = DataFrame(
-        vertex = eachindex(weights),
-        weight = copy(weights),
-        permweight_median = median(permweights, dims=2) |> vec,
-        permweight_mean = mean(permweights, dims=2) |> vec,
-        walkweight = copy(walkweights),
-        walkpermweight_median = median(walkpermweights, dims=2) |> vec,
-        walkpermweight_mean = mean(walkpermweights, dims=2) |> vec)
-    res[!, :walkweight_delta] .= res.walkweight - res.walkpermweight_median
-    res = hcat(res, DataFrame(
-        nless_weight = [sum(>(res.weight[i]), permw)
-                        for (i, permw) in enumerate(eachrow(permweights))],
-        ngreater_weight = [sum(<(res.weight[i]), permw)
-                           for (i, permw) in enumerate(eachrow(permweights))],
-        nless_walkweight = [sum(>(res.walkweight[i]), permw)
-                            for (i, permw) in enumerate(eachrow(walkpermweights))],
-        ngreater_walkweight = [sum(<(res.walkweight[i]), permw)
-                               for (i, permw) in enumerate(eachrow(walkpermweights))]
-    ))
+    res = _graph_stats!(DataFrame(vertex = eachindex(weights)),
+                        weights, walkweights, permweights, walkpermweights)
     return res
 end
 
