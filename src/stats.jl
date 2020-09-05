@@ -46,6 +46,52 @@ function vertex_stats(weights::AbstractVector{<:Number},
     return res
 end
 
+function diedge_stats(weights::AbstractMatrix{<:Number},
+                      walkweights::AbstractMatrix{<:Number},
+                      permweights::AbstractArray{<:Number, 3},
+                      walkpermweights::AbstractArray{<:Number, 3})
+    check_square(weights, "weight matrix")
+    (size(weights) == size(permweights, (1, 2))) ||
+        throw(DimensionMismatch("Original weights size ($(size(weights))) doesn't match the permuted weights size $(size(permweights, (1, 2)))"))
+    (size(weights) == size(walkweights)) ||
+        throw(DimensionMismatch("Original weights size ($(size(weights))) doesn't match the random walk weights size $(size(permweights))"))
+    (size(weights) == size(walkpermweights, (1, 2))) ||
+        throw(DimensionMismatch("Weights size ($(size(weights))) doesn't match the permuted random walk weights size $(size(walkpermweights, (1, 2)))"))
+    (size(permweights, 2) == size(walkpermweights, 32)) ||
+        throw(DimensionMismatch("Weights permutations count ($(size(permweights, 2))) doesn't match the random walk permutations count $(size(walkpermweights, 3))"))
+
+    res = DataFrame(
+            src = getindex.(Ref(CartesianIndices(weights)), 2),
+            dest = getindex.(Ref(CartesianIndices(weights)), 1))
+    _graph_stats!(res, weights, walkweights, permweights, walkpermweights)
+    return res
+end
+
+function diedge_stats(nvertices::Integer, diedge_indices::AbstractVector{<:Integer},
+                      weights::AbstractVector{<:Number},
+                      walkweights::AbstractVector{<:Number},
+                      permweights::AbstractMatrix{<:Number},
+                      walkpermweights::AbstractMatrix{<:Number}
+)
+    (length(diedge_indices) == length(weights)) ||
+        throw(DimensionMismatch("Diedge indices count ($(length(diedge_indices))) doesn't match the weights count $(length(weights))"))
+    (length(weights) == size(permweights, 1)) ||
+        throw(DimensionMismatch("Original weights length ($(length(weights))) doesn't match the permuted weights length $(size(permweights, 1))"))
+    (length(weights) == length(walkweights)) ||
+        throw(DimensionMismatch("Weights length ($(length(weights))) doesn't match the random walk weights length $(length(walkweights))"))
+    (length(weights) == size(walkpermweights, 1)) ||
+        throw(DimensionMismatch("Weights length ($(length(weights))) doesn't match the permuted random walk weights length $(size(walkpermweights, 1))"))
+    (size(permweights, 2) == size(walkpermweights, 2)) ||
+        throw(DimensionMismatch("Weights permutations count ($(size(permweights, 2))) doesn't match the random walk permutations count $(size(walkpermweights, 2))"))
+
+    all_diedges = CartesianIndices((nvertices, nvertices))
+    res = DataFrame(
+        src = [all_diedges[i][2] for i in diedge_indices],
+        dest = [all_diedges[i][1] for i in diedge_indices])
+    _graph_stats!(res, weights, walkweights, permweights, walkpermweights)
+    return res
+end
+
 function conncomponents_stats(
     conncomps::IndicesPartition,
     vertex_stats::Union{AbstractDataFrame, Nothing} = nothing;
