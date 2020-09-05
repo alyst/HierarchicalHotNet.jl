@@ -94,18 +94,19 @@ end
 
 function conncomponents_stats(
     conncomps::IndicesPartition,
-    vertex_stats::Union{AbstractDataFrame, Nothing} = nothing;
+    vertex_weights::Union{AbstractVector, Nothing} = nothing,
+    vertex_walkweights::Union{AbstractVector, Nothing} = nothing,
+    perm_vertex_weights::Union{AbstractMatrix, Nothing} = nothing,
+    perm_vertex_walkweights::Union{AbstractMatrix, Nothing} = nothing;
     average_weights::Bool = true,
     weight_tests::Bool = false,
     mannwhitney_tests::Bool = false
 )
-    isnothing(vertex_stats) || (vertex_stats.vertex == 1:nrow(vertex_stats)) ||
-        throw(ArgumentError("vertex_stats should be ordered by vertex IDs from 1 to N without gaps"))
     res = DataFrame(
         component = eachindex(conncomps),
         nvertices = length.(conncomps)
     )
-    isnothing(vertex_stats) && return res
+    isnothing(vertex_weights) && return res
 
     if mannwhitney_tests
         if weight_tests
@@ -118,10 +119,6 @@ function conncomponents_stats(
         walkweight_medians = sizehint!(Vector{Float64}(), length(conncomps))
         weight_means = sizehint!(Vector{Float64}(), length(conncomps))
         walkweight_means = sizehint!(Vector{Float64}(), length(conncomps))
-        permweight_medians = sizehint!(Vector{Float64}(), length(conncomps))
-        walkpermweight_medians = sizehint!(Vector{Float64}(), length(conncomps))
-        permweight_means = sizehint!(Vector{Float64}(), length(conncomps))
-        walkpermweight_means = sizehint!(Vector{Float64}(), length(conncomps))
     end
     if average_weights || mannwhitney_tests
         comp_weights = Vector{Float64}()
@@ -134,20 +131,16 @@ function conncomponents_stats(
             empty!(comp_permweights)
             empty!(comp_walkpermweights)
             @inbounds for v in comp
-                push!(comp_weights, vertex_stats.weight[v])
-                push!(comp_walkweights, vertex_stats.walkweight[v])
-                push!(comp_permweights, vertex_stats.permweight_median[v])
-                push!(comp_walkpermweights, vertex_stats.walkpermweight_median[v])
+                isnothing(vertex_weights) || push!(comp_weights, view(vertex_weights, v))
+                isnothing(comp_permweights) || append!(comp_permweights, view(perm_vertex_weights, v, :) |> vec)
+                isnothing(vertex_walkweights) || push!(comp_walkweights, view(vertex_walkweights, v))
+                isnothing(comp_walkpermweights) || append!(comp_walkpermweights, view(perm_vertex_walkweights, v, :) |> vec)
             end
             if average_weights
                 push!(weight_medians, median(comp_weights))
                 push!(weight_means, mean(comp_weights))
-                push!(permweight_medians, median(comp_permweights))
-                push!(permweight_means, mean(comp_permweights))
                 push!(walkweight_medians, median(comp_walkweights))
                 push!(walkweight_means, mean(comp_walkweights))
-                push!(walkpermweight_medians, median(comp_walkpermweights))
-                push!(walkpermweight_means, mean(comp_walkpermweights))
             end
             if mannwhitney_tests
                 if weight_tests
@@ -184,15 +177,11 @@ function conncomponents_stats(
     return res
 end
 
-function treecut_stats(tree::SCCTree,
-                       vertex_stats::Union{AbstractDataFrame, Nothing}=nothing;
+function treecut_stats(tree::SCCTree;
                        walkmatrix::Union{AbstractMatrix, Nothing}=nothing,
                        sources::Union{AbstractVector, Nothing}=nothing,
                        sinks::Union{AbstractVector, Nothing}=nothing,
                        top_count::Integer=5,
-                       mannwhitney_tests::Bool = false,
-                       pvalue_mw_max::Number=0.05,
-                       pvalue_fisher_max::Number=0.05,
                        pools::Union{ObjectPools, Nothing} = nothing,
                        nflows_ratio::Number=0.9)
     ptnpool = objpool(pools, IndicesPartition)
@@ -205,14 +194,6 @@ function treecut_stats(tree::SCCTree,
     intpool = arraypool(pools, Int)
     comps_size = borrow!(intpool)
     comps_perm = borrow!(intpool)
-    if vertex_stats !== nothing
-        nsignif_fisher = Vector{Int}()
-        signif_sizesum_fisher = Vector{Int}()
-        if mannwhitney_tests
-            nsignif_mw = Vector{Int}()
-            signif_sizesum_mw = Vector{Int}()
-        end
-    end
     if !isnothing(sources)
         topn_nsources = Vector{Int}()
         sourceset = Set(sources)
@@ -306,18 +287,6 @@ function treecut_stats(tree::SCCTree,
                 push!(compflow_dist_v, last(compflow_dist_v))
             end
         end
-        if vertex_stats !== nothing
-            filter!(comp -> length(comp) > 1, comps_nontriv, comps)
-            compstats_df = conncomponents_stats(comps_nontriv, vertex_stats, average_weights=false, mannwhitney_tests=mannwhitney_tests)
-            push!(nsignif_fisher, sum(<=(pvalue_fisher_max), compstats_df.pvalue_walkweight_fisher))
-            push!(signif_sizesum_fisher, sum(r -> ifelse(r.pvalue_walkweight_fisher <= pvalue_fisher_max, r.nvertices, 0),
-                                             eachrow(compstats_df)))
-            if mannwhitney_tests
-                push!(nsignif_mw, sum(<=(pvalue_mw_max), compstats_df.pvalue_walkweight_mw))
-                push!(signif_sizesum_mw, sum(r -> ifelse(r.pvalue_walkweight_mw <= pvalue_mw_max, r.nvertices, 0),
-                                             eachrow(compstats_df)))
-            end
-        end
     end
     res = DataFrame(
         threshold = tree.thresholds[1:length(ncomps)],
@@ -328,14 +297,6 @@ function treecut_stats(tree::SCCTree,
         topn_components_sizesum = topn_sizesum,
         log10_topn_components_sizesum = log10.(topn_sizesum)
     )
-    if vertex_stats !== nothing
-        res.ncomponents_signif_fisher = nsignif_fisher
-        res.components_signif_sizesum_fisher = signif_sizesum_fisher
-        if mannwhitney_tests
-            res.ncomponents_signif_mw = nsignif_mw
-            res.components_signif_sizesum_mw = signif_sizesum_mw
-        end
-    end
     if !isnothing(sources)
         res.topn_nsources = topn_nsources
     end
@@ -384,6 +345,54 @@ function treecut_stats(tree::SCCTree,
     release!(ptnpool, comps)
     release!(intpool, comps_perm)
     release!(intpool, comps_size)
+    return res
+end
+
+function treecut_compstats(tree::SCCTree,
+    vertex_weights::AbstractVector,
+    vertex_walkweights::AbstractVector,
+    perm_vertex_weights::AbstractMatrix,
+    perm_vertex_walkweights::AbstractMatrix;
+    mannwhitney_tests::Bool = false,
+    pvalue_mw_max::Number=0.05,
+    pvalue_fisher_max::Number=0.05,
+    pools::Union{ObjectPools, Nothing} = nothing
+)
+    ptnpool = objpool(pools, IndicesPartition)
+    comps = borrow!(ptnpool)
+    comps_nontriv = borrow!(ptnpool)
+    nsignif_fisher = Vector{Int}()
+    signif_sizesum_fisher = Vector{Int}()
+    if mannwhitney_tests
+        nsignif_mw = Vector{Int}()
+        signif_sizesum_mw = Vector{Int}()
+    end
+    for (i, thresh) in enumerate(tree.thresholds)
+        cut!(comps, tree, thresh)
+        filter!(comp -> length(comp) > 1, comps_nontriv, comps)
+        compstats_df = conncomponents_stats(comps_nontriv, vertex_weights, vertex_walkweights,
+                perm_vertex_weights, perm_vertex_walkweights,
+                average_weights=false, mannwhitney_tests=mannwhitney_tests)
+        push!(nsignif_fisher, sum(<=(pvalue_fisher_max), compstats_df.pvalue_walkweight_fisher))
+        push!(signif_sizesum_fisher, sum(r -> ifelse(r.pvalue_walkweight_fisher <= pvalue_fisher_max, r.nvertices, 0),
+                          eachrow(compstats_df)))
+        if mannwhitney_tests
+            push!(nsignif_mw, sum(<=(pvalue_mw_max), compstats_df.pvalue_walkweight_mw))
+            push!(signif_sizesum_mw, sum(r -> ifelse(r.pvalue_walkweight_mw <= pvalue_mw_max, r.nvertices, 0),
+                            eachrow(compstats_df)))
+        end
+    end
+    res = DataFrame(
+            threshold = tree.thresholds[1:length(ncomps)],
+            ncomponents_signif_fisher = nsignif_fisher,
+            components_signif_sizesum_fisher = signif_sizesum_fisher
+    )
+    if mannwhitney_tests
+        res.ncomponents_signif_mw = nsignif_mw
+        res.components_signif_sizesum_mw = signif_sizesum_mw
+    end
+    release!(ptnpool, comps_nontriv)
+    release!(ptnpool, comps)
     return res
 end
 
