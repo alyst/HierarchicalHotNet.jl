@@ -196,11 +196,17 @@ function treecut_stats(tree::SCCTree;
     comps_perm = borrow!(intpool)
     if !isnothing(sources)
         topn_nsources = Vector{Int}()
-        sourceset = Set(sources)
+        ncompsources_v = Vector{Int}()
+        insources = in(Set(sources))
+    else
+        insources = nothing
     end
     if !isnothing(sinks)
         topn_nsinks = Vector{Int}()
-        sinkset = Set(sinks)
+        ncompsinks_v = Vector{Int}()
+        insinks = in(Set(sinks))
+    else
+        insinks = nothing
     end
     if !isnothing(sources) && !isnothing(sinks)
         if isnothing(walkmatrix)
@@ -212,8 +218,6 @@ function treecut_stats(tree::SCCTree;
             #                                walkmatrix, EdgeTest{eltype(walkmatrix)}(rev=tree.rev))
             nflows_v = Vector{Int}()
             ncompflows_v = Vector{Int}()
-            ncompsources_v = Vector{Int}()
-            ncompsinks_v = Vector{Int}()
             flow_avglen_v = Vector{Float64}()
             flow_avgweight_v = Vector{Float64}()
             compflow_avglen_v = Vector{Float64}()
@@ -244,11 +248,13 @@ function treecut_stats(tree::SCCTree;
         topn_comp_ixs = view(comps_perm, 1:topn_pos)
         topn_comps = view(comps, topn_comp_ixs)
         push!(topn_sizesum, sum(view(comps_size, topn_comp_ixs)))
-        if !isnothing(sources)
-            push!(topn_nsources, sum(comp -> sum(i -> in(i, sourceset), comp), topn_comps))
+        if !isnothing(insources)
+            push!(topn_nsources, sum(comp -> count(insources, comp), topn_comps))
+            push!(ncompsources_v, count(comp -> any(insources, comp), comps))
         end
-        if !isnothing(sinks)
-            push!(topn_nsinks, sum(comp -> sum(i -> in(i, sinkset), comp), topn_comps))
+        if !isnothing(insinks)
+            push!(topn_nsinks, sum(comp -> count(insinks, comp), topn_comps))
+            push!(ncompsinks_v, count(comp -> any(insinks, comp), comps))
         end
         if !isnothing(nflows_v)
             compsquares = sum(l -> ifelse(l > 1, abs2(float(l)), 0.2), comps_size)
@@ -262,10 +268,8 @@ function treecut_stats(tree::SCCTree;
                 flowstats =
                     nflows(comps, walkmatrix, sources, sinks, EdgeTest{eltype(walkmatrix)}(threshold=thresh), pools)
                 nvtxflows_max = length(sources)*length(sinks)
-                ncompflows_max = flowstats.ncompsources*flowstats.ncompsinks
+                ncompflows_max = last(ncompsources_v)*last(ncompsinks_v)
 
-                push!(ncompsources_v, flowstats.ncompsources)
-                push!(ncompsinks_v, flowstats.ncompsinks)
                 push!(nflows_v, flowstats.nflows)
                 push!(ncompflows_v, flowstats.ncompflows)
                 push!(flow_avglen_v, flowstats.flowlen_sum/flowstats.nflows)
@@ -275,8 +279,6 @@ function treecut_stats(tree::SCCTree;
                 push!(flow_dist_v, ((nvtxflows_max - flowstats.nflows) * (length(comps) + 1) + flowstats.flowlen_sum) / nvtxflows_max)
                 push!(compflow_dist_v, ((ncompflows_max - flowstats.ncompflows) * (length(comps) + 1) + flowstats.compflowlen_sum) / ncompflows_max)
             else # duplicate the last nflows
-                push!(ncompsources_v, last(ncompsources_v))
-                push!(ncompsinks_v, last(ncompsinks_v))
                 push!(nflows_v, last(nflows_v))
                 push!(ncompflows_v, last(ncompflows_v))
                 push!(flow_avglen_v, last(flow_avglen_v))
@@ -299,13 +301,13 @@ function treecut_stats(tree::SCCTree;
     )
     if !isnothing(sources)
         res.topn_nsources = topn_nsources
+        res.ncompsources = ncompsources_v
     end
     if !isnothing(sinks)
         res.topn_nsinks = topn_nsinks
+        res.ncompsinks = ncompsinks_v
     end
     if !isnothing(nflows_v)
-        res.ncompsources = ncompsources_v
-        res.ncompsinks = ncompsinks_v
         res.nflows = nflows_v
         res.ncompflows = ncompflows_v
         res.flow_avglen = flow_avglen_v
