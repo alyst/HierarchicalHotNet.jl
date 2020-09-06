@@ -288,7 +288,9 @@ function nflows(
     adjmtx::AbstractMatrix,
     sources::AbstractVector{Int}, sinks::AbstractVector{Int},
     test::EdgeTest,
-    pools::Union{ObjectPools, Nothing} = nothing
+    pools::Union{ObjectPools, Nothing} = nothing;
+    used_sources::Union{AbstractVector{Int}, Nothing}=nothing,
+    used_sinks::Union{AbstractVector{Int}, Nothing}=nothing
 )
     nvtxflows = 0
     flowlen_sum = 0
@@ -299,6 +301,8 @@ function nflows(
     ncompflows = 0
     ncompsources = 0
     ncompsinks = 0
+    isnothing(used_sources) || empty!(used_sources)
+    isnothing(used_sinks) || empty!(used_sinks)
     if length(sources) > 0 || length(sinks) > 0 # || just to compute compsources/compsinks, for flows should be &&
         flowpool = arraypool(pools, Flow)
         compflows = borrow!(flowpool)
@@ -309,6 +313,8 @@ function nflows(
                              adjmtx, sources, sinks, test, pools)
         ncompsources = count(!isempty, compsources)
         ncompsinks = count(!isempty, compsinks)
+        used_compsources = falses(length(compsources))
+        used_compsinks = falses(length(compsinks))
 
         @inbounds for ((compi, compj), info) in compflows
             npairs = length(compsources[compi])*length(compsinks[compj])
@@ -320,6 +326,24 @@ function nflows(
                 for snk in compsinks[compj]
                     floweight = src_flows[snk]
                     cur_floweight_sum += floweight
+                end
+            end
+            if !isnothing(used_sources) && !used_compsources[compi]
+                used_compsources[compi] = true
+                for src in compsources[compi]
+                    isrc = searchsortedfirst(used_sources, src)
+                    if (isrc > length(used_sources)) || (used_sources[isrc] != src)
+                        insert!(used_sources, isrc, src)
+                    end
+                end
+            end
+            if !isnothing(used_sinks) && !used_compsinks[compj]
+                used_compsinks[compj] = true
+                for snk in compsinks[compj]
+                    isnk = searchsortedfirst(used_sinks, snk)
+                    if (isnk > length(used_sinks)) || (used_sinks[isnk] != snk)
+                        insert!(used_sinks, isnk, snk)
+                    end
                 end
             end
             floweight_sum += cur_floweight_sum
@@ -347,11 +371,12 @@ function nflows(
     tree::SCCTree, adjmtx::AbstractMatrix,
     sources::AbstractVector{Int}, sinks::AbstractVector{Int},
     test::EdgeTest,
-    pools::Union{ObjectPools, Nothing} = nothing
+    pools::Union{ObjectPools, Nothing} = nothing;
+    kwargs...
 )
     ptnpool = objpool(pools, IndicesPartition)
     comps = cut!(empty!(borrow!(ptnpool)), tree, test.threshold)
-    res = nflows(comps, adjmtx, sources, sinks, test, pools)
+    res = nflows(comps, adjmtx, sources, sinks, test, pools; kwargs...)
     release!(ptnpool, comps)
     return res
 end
