@@ -216,6 +216,11 @@ function treecut_stats(tree::SCCTree;
             #iwalkmatrix, weights = indexvalues!(borrow!(arraypool(pools, Int32), size(walkmatrix)),
             #                                borrow!(arraypool(pools, eltype(walkmatrix))),
             #                                walkmatrix, EdgeTest{eltype(walkmatrix)}(rev=tree.rev))
+            active_sources = copy!(borrow!(intpool), sources)
+            active_sources_new = borrow!(intpool)
+            active_sinks = copy!(borrow!(intpool), sinks)
+            active_sinks_new = borrow!(intpool)
+
             nflows_v = Vector{Int}()
             ncompflows_v = Vector{Int}()
             flow_avglen_v = Vector{Float64}()
@@ -266,9 +271,13 @@ function treecut_stats(tree::SCCTree;
                 #@assert (ithresh <= length(weights)) && (weights[ithresh] == thresh)
                 foreach(sort!, comps) # sorting improves condense!(iwalkmatrix) performace
                 flowstats =
-                    nflows(comps, walkmatrix, sources, sinks, EdgeTest{eltype(walkmatrix)}(threshold=thresh), pools)
+                    nflows(comps, walkmatrix, active_sources, active_sinks, EdgeTest{eltype(walkmatrix)}(threshold=thresh), pools,
+                           used_sources=active_sources_new, used_sinks=active_sinks_new)
                 nvtxflows_max = length(sources)*length(sinks)
                 ncompflows_max = last(ncompsources_v)*last(ncompsinks_v)
+                # since the next threshold would be more stringent, only consider used sources/sinks for the next nflows()
+                active_sources, active_sources_new = active_sources_new, active_sources
+                active_sinks, active_sinks_new = active_sinks_new, active_sinks
 
                 push!(nflows_v, flowstats.nflows)
                 push!(ncompflows_v, flowstats.ncompflows)
@@ -339,6 +348,10 @@ function treecut_stats(tree::SCCTree;
         res.flow_avgweight_qtl = walkmatrix_cdf.(res.flow_avgweight)
         res.compflow_avgweight_qtl = walkmatrix_cdf.(res.compflow_avgweight)
 
+        release!(intpool, active_sources)
+        release!(intpool, active_sources_new)
+        release!(intpool, active_sinks)
+        release!(intpool, active_sinks_new)
         #release!(arraypool(pools, Int32), iwalkmatrix)
         #release!(arraypool(pools, eltype(walkmatrix)), weights)
     end
