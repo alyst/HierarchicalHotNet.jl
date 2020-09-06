@@ -290,50 +290,57 @@ function nflows(
     test::EdgeTest,
     pools::Union{ObjectPools, Nothing} = nothing
 )
-    flowpool = arraypool(pools, Flow)
-    compflows = borrow!(flowpool)
-
-    ptnpool = objpool(pools, IndicesPartition)
-    compsources = borrow!(ptnpool)
-    compsinks = borrow!(ptnpool)
-    componentsflowgraph!(nothing, compflows, compsources, compsinks, comps,
-                         adjmtx, sources, sinks, test, pools)
     nvtxflows = 0
     flowlen_sum = 0
     floweight_sum = 0.0
     compflowlen_sum = 0
     compfloweight_sum = 0.0
     compflowlen_max = 0
-    @inbounds for ((compi, compj), info) in compflows
-        npairs = length(compsources[compi])*length(compsinks[compj])
-        nvtxflows += npairs
+    ncompflows = 0
+    ncompsources = 0
+    ncompsinks = 0
+    if length(sources) > 0 || length(sinks) > 0 # || just to compute compsources/compsinks, for flows should be &&
+        flowpool = arraypool(pools, Flow)
+        compflows = borrow!(flowpool)
+        ptnpool = objpool(pools, IndicesPartition)
+        compsources = borrow!(ptnpool)
+        compsinks = borrow!(ptnpool)
+        componentsflowgraph!(nothing, compflows, compsources, compsinks, comps,
+                             adjmtx, sources, sinks, test, pools)
+        ncompsources = count(!isempty, compsources)
+        ncompsinks = count(!isempty, compsinks)
 
-        cur_floweight_sum = 0.0 # all pairwise flows between the vertices of current components
-        for src in compsources[compi]
-            src_flows = view(adjmtx, :, src)
-            for snk in compsinks[compj]
-                floweight = src_flows[snk]
-                cur_floweight_sum += floweight
+        @inbounds for ((compi, compj), info) in compflows
+            npairs = length(compsources[compi])*length(compsinks[compj])
+            nvtxflows += npairs
+
+            cur_floweight_sum = 0.0 # all pairwise flows between the vertices of current components
+            for src in compsources[compi]
+                src_flows = view(adjmtx, :, src)
+                for snk in compsinks[compj]
+                    floweight = src_flows[snk]
+                    cur_floweight_sum += floweight
+                end
             end
-        end
-        floweight_sum += cur_floweight_sum
-        flowlen_sum += npairs * info.len
+            floweight_sum += cur_floweight_sum
+            flowlen_sum += npairs * info.len
 
-        compflowlen_sum += info.len
-        compfloweight_sum += info.weight
-        compflowlen_max = max(compflowlen_max, info.len)
+            compflowlen_sum += info.len
+            compfloweight_sum += info.weight
+            compflowlen_max = max(compflowlen_max, info.len)
+        end
+        ncompflows = length(compflows)
+        release!(flowpool, compflows)
+        release!(ptnpool, compsinks)
+        release!(ptnpool, compsources)
     end
 
-    release!(flowpool, compflows)
-    release!(ptnpool, compsinks)
-    release!(ptnpool, compsources)
-
-    return (nflows = nvtxflows, ncompflows=length(compflows),
+    return (nflows = nvtxflows, ncompflows=ncompflows,
             flowlen_sum = flowlen_sum, compflowlen_sum = compflowlen_sum,
             compflowlen_max = compflowlen_max,
             floweight_sum = floweight_sum, compfloweight_sum = compfloweight_sum,
-            ncompsources = sum(!isempty, compsources),
-            ncompsinks = sum(!isempty, compsinks))
+            ncompsources = ncompsources,
+            ncompsinks = ncompsinks)
 end
 
 function nflows(
