@@ -36,9 +36,9 @@ function random_walk_matrix(adjmtx::AbstractMatrix,
     (0 <= restart_probability <= 1) ||
         throw(DomainError(restart_probability, "restart_probability should be in [0, 1] range"))
     check_square(adjmtx, "Adjacency matrix")
-    return restart_probability * inv(
+    return restart_probability * inv(convert(Matrix,
             Diagonal(I, size(adjmtx, 1)) -
-            (1-restart_probability) * adjmtx)
+            (1-restart_probability) * adjmtx))
 end
 
 similarity_matrix(g::Union{AbstractMatrix, AbstractSimpleWeightedGraph},
