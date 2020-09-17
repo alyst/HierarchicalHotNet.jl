@@ -160,6 +160,7 @@ end
                      HHN.EdgeTest{Float64}(threshold=20)) == (nflows=6, ncompflows=6,
                                                               flowlen_sum=5, compflowlen_sum=5, compflowlen_max=2,
                                                               floweight_sum = 46.0, compfloweight_sum = 141.0,
+                                                              flowavghopweight_sum = 23.0,
                                                               ncompsources=4, ncompsinks=3)
 
     @testset "Flows only" begin

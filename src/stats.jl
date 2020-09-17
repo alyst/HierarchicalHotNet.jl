@@ -238,6 +238,7 @@ function treecut_stats(tree::SCCTree;
             ncompflows_v = Vector{Int}()
             flow_avglen_v = Vector{Float64}()
             flow_avgweight_v = Vector{Float64}()
+            flow_avghopweight_v = Vector{Float64}()
             compflow_avglen_v = Vector{Float64}()
             compflow_avgweight_v = Vector{Float64}()
             flow_dist_v = Vector{Float64}()
@@ -297,6 +298,7 @@ function treecut_stats(tree::SCCTree;
                 push!(flow_avglen_v, flowstats.flowlen_sum/flowstats.nflows)
                 push!(compflow_avglen_v, flowstats.compflowlen_sum/flowstats.ncompflows)
                 push!(flow_avgweight_v, flowstats.floweight_sum / nvtxflows_max)
+                push!(flow_avghopweight_v, flowstats.flowavghopweight_sum / nvtxflows_max)
                 push!(compflow_avgweight_v, flowstats.compfloweight_sum / ncompflows_max)
                 push!(flow_dist_v, ((nvtxflows_max - flowstats.nflows) * (length(comps) + 1) + flowstats.flowlen_sum) / nvtxflows_max)
                 push!(compflow_dist_v, ((ncompflows_max - flowstats.ncompflows) * (length(comps) + 1) + flowstats.compflowlen_sum) / ncompflows_max)
@@ -306,6 +308,7 @@ function treecut_stats(tree::SCCTree;
                 push!(flow_avglen_v, last(flow_avglen_v))
                 push!(compflow_avglen_v, last(compflow_avglen_v))
                 push!(flow_avgweight_v, last(flow_avgweight_v))
+                push!(flow_avghopweight_v, last(flow_avghopweight_v))
                 push!(compflow_avgweight_v, last(compflow_avgweight_v))
                 push!(flow_dist_v, last(flow_dist_v))
                 push!(compflow_dist_v, last(compflow_dist_v))
@@ -335,6 +338,7 @@ function treecut_stats(tree::SCCTree;
         res.flow_avglen = flow_avglen_v
         res.compflow_avglen = compflow_avglen_v
         res.flow_avgweight = flow_avgweight_v
+        res.flow_avghopweight = flow_avghopweight_v
         res.compflow_avgweight = compflow_avgweight_v
         res.flow_distance = flow_dist_v
         res.compflow_distance = compflow_dist_v

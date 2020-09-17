@@ -295,6 +295,7 @@ function nflows(
     nvtxflows = 0
     flowlen_sum = 0
     floweight_sum = 0.0
+    flowavghopweight_sum = 0.0
     compflowlen_sum = 0
     compfloweight_sum = 0.0
     compflowlen_max = 0
@@ -321,6 +322,7 @@ function nflows(
             nvtxflows += npairs
 
             cur_floweight_sum = 0.0 # all pairwise flows between the vertices of current components
+            cur_flowhopavgweight_sum = 0.0
             for src in compsources[compi]
                 src_flows = view(adjmtx, :, src)
                 for snk in compsinks[compj]
@@ -348,6 +350,7 @@ function nflows(
             end
             floweight_sum += cur_floweight_sum
             flowlen_sum += npairs * info.len
+            flowavghopweight_sum += cur_floweight_sum / (info.len + 1)
 
             compflowlen_sum += info.len
             compfloweight_sum += info.weight
@@ -363,6 +366,7 @@ function nflows(
             flowlen_sum = flowlen_sum, compflowlen_sum = compflowlen_sum,
             compflowlen_max = compflowlen_max,
             floweight_sum = floweight_sum, compfloweight_sum = compfloweight_sum,
+            flowavghopweight_sum = flowavghopweight_sum,
             ncompsources = ncompsources,
             ncompsinks = ncompsinks)
 end
