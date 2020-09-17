@@ -1,3 +1,23 @@
+function _permweight_stats(weights::AbstractVector, permweights::AbstractMatrix)
+    @assert length(weights) == size(permweights, 1)
+    means = similar(weights)
+    stds = similar(weights)
+    medians = similar(weights)
+    mads = similar(weights)
+    nless = similar(weights, Int)
+    ngreater = similar(nless)
+    Threads.@threads for i in axes(permweights, 1)
+        permw = permweights[i, :]
+        means[i] = mean(permw)
+        stds[i] = std(permw)
+        medians[i] = mean(permw)
+        mads[i] = mad(permw)
+        nless[i] = sum(>(weights[i]), permw)
+        ngreater[i] = sum(<(weights[i]), permw)
+    end
+    return means, stds, medians, mads, nless, ngreater
+end
+
 function _graph_stats!(res::AbstractDataFrame,
     weights::AbstractArray{<:Number, N},
     walkweights::AbstractArray{<:Number, N},
@@ -6,25 +26,18 @@ function _graph_stats!(res::AbstractDataFrame,
 ) where N
     permw_mtx = reshape(permweights, (prod(size(permweights)[1:N]), size(permweights, N+1)))
     permwalkw_mtx = reshape(walkpermweights, (prod(size(walkpermweights)[1:N]), size(permweights, N+1)))
+
     res.weight = copy(weights) |> vec
-    res.permweight_mean = mean(permw_mtx, dims=2) |> vec
-    res.permweight_std = std(permw_mtx, dims=2) |> vec
-    res.permweight_median = median(permw_mtx, dims=2) |> vec
-    res.permweight_mad = [mad(weights) for weights in eachrow(permw_mtx)]
+    res.permweight_mean, res.permweight_std,
+    res.permweight_median, res.permweight_mad,
+    res.nless_weight, res.ngreater_weight = _permweight_stats(res.weight, permw_mtx)
+    res.weight_delta = res.weight - res.permweight_median
+
     res.walkweight = copy(walkweights) |> vec
-    res.walkpermweight_mean = mean(permwalkw_mtx, dims=2) |> vec
-    res.walkpermweight_std = std(permwalkw_mtx, dims=2) |> vec
-    res.walkpermweight_median = median(permwalkw_mtx, dims=2) |> vec
-    res.walkpermweight_mad = [mad(walkweights) for walkweights in eachrow(permwalkw_mtx)]
+    res.walkpermweight_mean, res.walkpermweight_std,
+    res.walkpermweight_median, res.walkpermweight_mad,
+    res.nless_walkweight, res.ngreater_walkweight = _permweight_stats(res.walkweight, permwalkw_mtx)
     res.walkweight_delta = res.walkweight - res.walkpermweight_median
-    res.nless_weight = [sum(>(w), permw)
-                        for (w, permw) in zip(res.weight, eachrow(permw_mtx))]
-    res.ngreater_weight = [sum(<(w), permw)
-                           for (w, permw) in zip(res.weight, eachrow(permw_mtx))]
-    res.nless_walkweight = [sum(>(w), permw)
-                            for (w, permw) in zip(res.walkweight, eachrow(permwalkw_mtx))]
-    res.ngreater_walkweight = [sum(<(w), permw)
-                               for (w, permw) in zip(res.walkweight, eachrow(permwalkw_mtx))]
     return res
 end
 
