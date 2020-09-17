@@ -535,13 +535,13 @@ function extreme_treecut_binstats(
                 DataFrame(
                     :metric => col,
                     :value => df[delta_pos, col],
-                    :value_type => aggtype,
+                    :delta_type => aggtype,
                     :permuted_value => df[delta_pos, perm_col],
                     :delta => delta_val,
                     :threshold_bin => df.threshold_bin[delta_pos],
                     :threshold => df.threshold[delta_pos]
                 )
-            end for (aggtype, aggfun) in ["min_delta" => findmin, "max_delta" => findmax]])
+            end for (aggtype, aggfun) in ["min" => findmin, "max" => findmax]])
             res
         end for col in stat_cols])
     end
