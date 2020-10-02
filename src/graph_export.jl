@@ -7,6 +7,8 @@ function export_flowgraph(
     diedges_stats::Union{AbstractDataFrame, Nothing} = nothing,
     stepmatrix::Union{AbstractMatrix, Nothing} = nothing,
     step_threshold::Number = 0.75 * threshold, maxsteps::Integer = 2,
+    step_sinks::Union{AbstractVector, AbstractSet, Nothing} = nothing,
+    step_sources::Union{AbstractVector, AbstractSet, Nothing} = nothing,
     flow_edges::Bool=false,
     pvalue_mw_max::Number=0.05,
     pvalue_fisher_max::Number=0.05,
@@ -51,7 +53,7 @@ function export_flowgraph(
         @inbounds flow_walkmatrix[pos2vertex, pos2vertex] .= view(walkmatrix, pos2vertex, pos2vertex)
         stepedges = tracesteps(Matrix(stepmatrix), EdgeTest{W}(threshold=step_threshold),
                                flow_walkmatrix, EdgeTest{W}(threshold=threshold),
-                               pools, maxsteps=maxsteps)
+                               pools, maxsteps=maxsteps, sources=step_sources, sinks=step_sinks)
         verbose && @info("$(length(stepedges)) step edge(s) traced (step_threshold=$(step_threshold), maxsteps=$maxsteps)")
         # add vertices from steps that are not yet in the flowgraph
         extra_vtxs_set = Set{Int}()
