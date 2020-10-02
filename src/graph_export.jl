@@ -4,6 +4,7 @@ function export_flowgraph(
     sources::AbstractVector{<:Integer}, sinks::AbstractVector{<:Integer};
     orig_diedges::Union{AbstractDataFrame, Nothing} = nothing,
     vertices_stats::Union{AbstractDataFrame, Nothing} = nothing,
+    diedges_stats::Union{AbstractDataFrame, Nothing} = nothing,
     stepmatrix::Union{AbstractMatrix, Nothing} = nothing,
     step_threshold::Number = 0.75 * threshold, maxsteps::Integer = 2,
     flow_edges::Bool=false,
@@ -110,6 +111,9 @@ function export_flowgraph(
                            walkweight = wj2i,
                            walkweight_rev = walkmatrix[src, trg]))
     end
+    if !isnothing(diedges_stats)
+        diedges_df = leftjoin(diedges_df, diedges_stats, on=[:source, :target])
+    end
 
     flows_df.flow = Vector{String}()
     flows_df.flowlen = Vector{Int}()
@@ -143,21 +147,16 @@ function export_flowgraph(
                   nflows_from = length(sources))
     end
 
-    diedges_df.flow = missings(String, nrow(diedges_df))
     if !isnothing(stepedges)
         steps_df = DataFrame(source = first.(stepedges),
                              target = last.(stepedges))
         extra_diedges_df = antijoin(steps_df, diedges_df, on=[:source, :target])
         extra_diedges_df[!, :flow] .= "trace"
-        extra_diedges_df.walkweight = missings(W, nrow(extra_diedges_df))
-        extra_diedges_df.walkweight_rev = missings(W, nrow(extra_diedges_df))
-        append!(diedges_df, extra_diedges_df)
+        append!(diedges_df, extra_diedges_df, cols=:union)
         verbose && @info("$(nrow(extra_diedges_df)) traced step edge(s) added")
     end
-    diedges_df.flowlen = missings(Int, nrow(diedges_df))
-    diedges_df.floweight = missings(W, nrow(diedges_df))
+    append!(diedges_df, flows_df, cols=:union)
 
-    append!(diedges_df, flows_df)
     if !isnothing(orig_diedges)
         diedges_df = leftjoin(diedges_df, orig_diedges, on=[:source, :target])
         diedges_df.is_original = .!ismissing.(coalesce.(diedges_df[!, :weight]))
@@ -179,11 +178,16 @@ function export_flowgraph(
             has_flow = !all(ismissing, edge_df.flowlen),
             has_trace = all(x -> coalesce(x, "") == "trace", edge_df.flow),
             has_walk = any(ismissing, edge_df.flowlen),
-            walkweight = any(r -> ismissing(r.flowlen) && !r.is_reverse, eachrow(edge_df)) ?
-                    maximum(edge_df[ismissing.(edge_df.flowlen) .& .!edge_df.is_reverse, :walkweight]) : missing,
-            walkweight_rev = any(r -> ismissing(r.flowlen) && r.is_reverse, eachrow(edge_df)) ?
-                    maximum(edge_df[ismissing.(edge_df.flowlen) .& edge_df.is_reverse, :walkweight]) : missing
         )
+        edge_mask = ismissing.(edge_df.flowlen) .& .!edge_df.is_reverse
+        edgerev_mask = ismissing.(edge_df.flowlen) .& edge_df.is_reverse
+        for col in [:walkweight, :prob_perm_walkweight_greater,
+                    :walkpermweight_median, :walkpermweight_mad,
+                    :walkpermweight_mean, :walkpermweight_std]
+            hasproperty(edge_df, col) || continue
+            res[!, col] .= any(edge_mask) ? maximum(edge_df[edge_mask, col]) : missing
+            res[!, Symbol(col, "_rev")] .= any(edgerev_mask) ? maximum(edge_df[edgerev_mask, col]) : missing
+        end
         if hasproperty(edge_df, :is_original)
             orig1st = findfirst(r -> r.is_original && !r.is_reverse, eachrow(edge_df))
             orig1st_rev = findfirst(r -> r.is_original && r.is_reverse, eachrow(edge_df))
