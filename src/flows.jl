@@ -396,6 +396,8 @@ function tracesteps!(
     walk_adjmtx::AbstractMatrix,
     walktest::EdgeTest,
     pools::Union{ObjectPools, Nothing} = nothing;
+    sources::Union{AbstractVector, AbstractSet, Nothing} = nothing,
+    sinks::Union{AbstractVector, AbstractSet, Nothing} = nothing,
     maxsteps::Integer=2
 )
     nv = size(step_adjmtx, 1)
@@ -413,6 +415,7 @@ function tracesteps!(
     dfspool = arraypool(pools, DFSState)
     dfs_stack = borrow!(dfspool) # local depth-first search stack
     @inbounds for v in axes(step_adjmtx, 2)
+        isnothing(sources) || in(v, sources) || continue
         empty!(dfs_stack)
         push!(dfs_stack, (v, 0))
         empty!(visited)
@@ -438,9 +441,9 @@ function tracesteps!(
                 end
             end
             if u > 0 # follow v->u Diedge
-                # v -...-> u path is present in the walk graph, add its
-                # steps to the result
-                if isvalidedge(walkedges[u], walktest)
+                # v -...-> u path is present in the walk graph, and u is a sink,
+                # add its steps to the result
+                if isvalidedge(walkedges[u], walktest) && (isnothing(sinks) || in(u, sinks))
                     for i in 2:length(dfs_stack)
                         push!(tracededges, dfs_stack[i-1][1] => dfs_stack[i][1])
                     end

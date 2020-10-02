@@ -211,6 +211,15 @@ end
         walkmtx = [0.0 0.0 0.0; 0.0 0.0 0.0; 1.0 0.0 0.0]
         @test HHN.tracesteps(stepmtx, HHN.EdgeTest{Float64}(threshold=0.5),
                              walkmtx, HHN.EdgeTest{Float64}(threshold=0.5)) == [1 => 2, 2 => 3]
+        @test HHN.tracesteps(stepmtx, HHN.EdgeTest{Float64}(threshold=0.5),
+                             walkmtx, HHN.EdgeTest{Float64}(threshold=0.5),
+                             sinks = [2]) == Pair{Int, Int}[]
+        @test HHN.tracesteps(stepmtx, HHN.EdgeTest{Float64}(threshold=0.5),
+                             walkmtx, HHN.EdgeTest{Float64}(threshold=0.5),
+                             sources = [2]) == Pair{Int, Int}[]
+        @test HHN.tracesteps(stepmtx, HHN.EdgeTest{Float64}(threshold=0.5),
+                             walkmtx, HHN.EdgeTest{Float64}(threshold=0.5),
+                             sinks = [1], sources = [2]) == Pair{Int, Int}[]
 
         stepmtx = [0.0 0.0 0.0; 1.0 0.0 0.0; 1.0 1.0 0.0]
         walkmtx = [0.0 0.0 0.0; 0.0 0.0 0.0; 1.0 0.0 0.0]
