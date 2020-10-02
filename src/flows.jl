@@ -289,6 +289,7 @@ function nflows(
     sources::AbstractVector{Int}, sinks::AbstractVector{Int},
     test::EdgeTest,
     pools::Union{ObjectPools, Nothing} = nothing;
+    maxweight::Union{Number, Nothing} = nothing,
     used_sources::Union{AbstractVector{Int}, Nothing}=nothing,
     used_sinks::Union{AbstractVector{Int}, Nothing}=nothing
 )
@@ -326,6 +327,9 @@ function nflows(
                 src_flows = view(adjmtx, :, src)
                 for snk in compsinks[compj]
                     floweight = src_flows[snk]
+                    if !isnothing(maxweight) && (floweight > maxweight)
+                        floweight = maxweight
+                    end
                     cur_floweight_sum += floweight
                 end
             end
