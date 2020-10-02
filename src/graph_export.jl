@@ -18,9 +18,9 @@ function export_flowgraph(
     subgraph, flows, conncomps = flowgraph(tree, walkmatrix, sources, sinks,
                                            EdgeTest{T}(threshold=threshold),
                                            pools)
-    components_df = conncomponents_stats(conncomps, vertices_stats,
-                                         average_weights=true,
-                                         mannwhitney_tests=true)
+    components_df = conncomponents_stats(conncomps,
+                                         average_weights=false,
+                                         mannwhitney_tests=false)
     components_df[!, :is_used] .= false
     for ((_, _), (a, b)) in subgraph
         components_df.is_used[a] = true
