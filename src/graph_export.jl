@@ -23,8 +23,8 @@ function export_flowgraph(
                                          mannwhitney_tests=true)
     components_df[!, :is_used] .= false
     for ((_, _), (a, b)) in subgraph
-        components_df[a, :is_used] = true
-        components_df[b, :is_used] = true
+        components_df.is_used[a] = true
+        components_df.is_used[b] = true
     end
     used_comps = IndicesPartition()
     for (i, comp) in enumerate(conncomps)
@@ -160,7 +160,7 @@ function export_flowgraph(
     append!(diedges_df, flows_df)
     if !isnothing(orig_diedges)
         diedges_df = leftjoin(diedges_df, orig_diedges, on=[:source, :target])
-        diedges_df[!, :is_original] .= .!ismissing.(coalesce.(diedges_df[!, :weight]))
+        diedges_df.is_original = .!ismissing.(coalesce.(diedges_df[!, :weight]))
     end
     used_vertices = union!(Set(diedges_df.source), Set(diedges_df.target))
     filter!(r -> r.vertex ∈ used_vertices, vertices_df)
@@ -185,19 +185,19 @@ function export_flowgraph(
                     maximum(edge_df[ismissing.(edge_df.flowlen) .& edge_df.is_reverse, :walkweight]) : missing
         )
         if hasproperty(edge_df, :is_original)
-            res[!, :has_original] .= any(r -> r.is_original && !r.is_reverse, eachrow(edge_df))
-            res[!, :has_original_rev] .= any(r -> r.is_original && r.is_reverse, eachrow(edge_df))
             orig1st = findfirst(r -> r.is_original && !r.is_reverse, eachrow(edge_df))
             orig1st_rev = findfirst(r -> r.is_original && r.is_reverse, eachrow(edge_df))
+            res.has_original = !isnothing(orig1st)
+            res.has_original_rev = !isnothing(orig1st_rev)
         else
             orig1st = orig1st_rev = nothing
         end
         if hasproperty(edge_df, :diedge_type)
-            res[!, :target_type] .= isnothing(orig1st) ? missing : edge_df.diedge_type[orig1st]
-            res[!, :source_type] .= isnothing(orig1st_rev) ? missing : edge_df.diedge_type[orig1st_rev]
+            res.target_type = isnothing(orig1st) ? missing : edge_df.diedge_type[orig1st]
+            res.source_type = isnothing(orig1st_rev) ? missing : edge_df.diedge_type[orig1st_rev]
         end
         if hasproperty(edge_df, :interaction_type)
-            res[!, :interaction_type] .= isnothing(orig1st) ? missing : edge_df.interaction_type[orig1st]
+            res.interaction_type = isnothing(orig1st) ? missing : edge_df.interaction_type[orig1st]
         end
         if !flow_edges && !any(res.has_walk)
             return filter!(r -> false, res) # pure flows are not exported
