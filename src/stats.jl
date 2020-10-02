@@ -354,17 +354,6 @@ function treecut_stats(tree::SCCTree;
                 nzeros += 1
             end
         end
-        if nzeros > 0
-            mtxweights = fill(1, length(mtxvals))
-            push!(mtxvals, 0)
-            push!(mtxweights, nzeros)
-            walkmatrix_cdf = HierarchicalHotNet.ecdf(mtxvals, mtxweights, true)
-        else
-            walkmatrix_cdf = HierarchicalHotNet.ecdf(mtxvals, nothing, true)
-        end
-        res.flow_avgweight_qtl = walkmatrix_cdf.(res.flow_avgweight)
-        res.compflow_avgweight_qtl = walkmatrix_cdf.(res.compflow_avgweight)
-
         release!(intpool, active_sources)
         release!(intpool, active_sources_new)
         release!(intpool, active_sinks)
@@ -437,8 +426,8 @@ const treecut_metrics = [
     :topn_nsources, :topn_nsinks,
     :ncompsources, :ncompsinks,
     :nflows, :ncompflows, :flow_avglen, :compflow_avglen,
-    :flow_avgweight, :flow_avgweight_qtl,
-    :compflow_avgweight, :compflow_avgweight_qtl,
+    :flow_avgweight, :flow_avghopweight,
+    :compflow_avgweight,
     :flow_distance, :compflow_distance]
 
 function bin_treecut_stats(
