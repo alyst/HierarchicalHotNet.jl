@@ -322,7 +322,6 @@ function nflows(
             nvtxflows += npairs
 
             cur_floweight_sum = 0.0 # all pairwise flows between the vertices of current components
-            cur_flowhopavgweight_sum = 0.0
             for src in compsources[compi]
                 src_flows = view(adjmtx, :, src)
                 for snk in compsinks[compj]
