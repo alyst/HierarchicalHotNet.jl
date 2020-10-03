@@ -295,9 +295,11 @@ function nflows(
 )
     nvtxflows = 0
     flowlen_sum = 0
+    flowinvlen_sum = 0.0
     floweight_sum = 0.0
     flowavghopweight_sum = 0.0
     compflowlen_sum = 0
+    compflowinvlen_sum = 0
     compfloweight_sum = 0.0
     compflowlen_max = 0
     ncompflows = 0
@@ -354,8 +356,10 @@ function nflows(
             floweight_sum += cur_floweight_sum
             flowlen_sum += npairs * info.len
             flowavghopweight_sum += cur_floweight_sum / (info.len + 1)
+            flowinvlen_sum += npairs / (info.len + 1)
 
             compflowlen_sum += info.len
+            compflowinvlen_sum += inv(info.len + 1)
             compfloweight_sum += info.weight
             compflowlen_max = max(compflowlen_max, info.len)
         end
@@ -367,6 +371,7 @@ function nflows(
 
     return (nflows = nvtxflows, ncompflows=ncompflows,
             flowlen_sum = flowlen_sum, compflowlen_sum = compflowlen_sum,
+            flowinvlen_sum = flowinvlen_sum, compflowinvlen_sum = compflowinvlen_sum,
             compflowlen_max = compflowlen_max,
             floweight_sum = floweight_sum, compfloweight_sum = compfloweight_sum,
             flowavghopweight_sum = flowavghopweight_sum,

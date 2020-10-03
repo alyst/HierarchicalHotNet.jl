@@ -238,9 +238,11 @@ function treecut_stats(tree::SCCTree;
             nflows_v = Vector{Int}()
             ncompflows_v = Vector{Int}()
             flow_avglen_v = Vector{Float64}()
+            flow_avginvlen_v = Vector{Float64}()
             flow_avgweight_v = Vector{Float64}()
             flow_avghopweight_v = Vector{Float64}()
             compflow_avglen_v = Vector{Float64}()
+            compflow_avginvlen_v = Vector{Float64}()
             compflow_avgweight_v = Vector{Float64}()
             flow_dist_v = Vector{Float64}()
             compflow_dist_v = Vector{Float64}()
@@ -297,7 +299,9 @@ function treecut_stats(tree::SCCTree;
                 push!(nflows_v, flowstats.nflows)
                 push!(ncompflows_v, flowstats.ncompflows)
                 push!(flow_avglen_v, flowstats.flowlen_sum/flowstats.nflows)
+                push!(flow_avginvlen_v, flowstats.flowinvlen_sum/nvtxflows_max)
                 push!(compflow_avglen_v, flowstats.compflowlen_sum/flowstats.ncompflows)
+                push!(compflow_avginvlen_v, flowstats.compflowinvlen_sum/ncompflows_max)
                 push!(flow_avgweight_v, flowstats.floweight_sum / nvtxflows_max)
                 push!(flow_avghopweight_v, flowstats.flowavghopweight_sum / nvtxflows_max)
                 push!(compflow_avgweight_v, flowstats.compfloweight_sum / ncompflows_max)
@@ -307,7 +311,9 @@ function treecut_stats(tree::SCCTree;
                 push!(nflows_v, last(nflows_v))
                 push!(ncompflows_v, last(ncompflows_v))
                 push!(flow_avglen_v, last(flow_avglen_v))
+                push!(flow_avginvlen_v, last(flow_avginvlen_v))
                 push!(compflow_avglen_v, last(compflow_avglen_v))
+                push!(compflow_avginvlen_v, last(compflow_avginvlen_v))
                 push!(flow_avgweight_v, last(flow_avgweight_v))
                 push!(flow_avghopweight_v, last(flow_avghopweight_v))
                 push!(compflow_avgweight_v, last(compflow_avgweight_v))
@@ -337,7 +343,9 @@ function treecut_stats(tree::SCCTree;
         res.nflows = nflows_v
         res.ncompflows = ncompflows_v
         res.flow_avglen = flow_avglen_v
+        res.flow_avginvlen = flow_avginvlen_v
         res.compflow_avglen = compflow_avglen_v
+        res.compflow_avginvlen = compflow_avginvlen_v
         res.flow_avgweight = flow_avgweight_v
         res.flow_avghopweight = flow_avghopweight_v
         res.compflow_avgweight = compflow_avgweight_v
@@ -426,7 +434,9 @@ const treecut_metrics = [
     :topn_components_sizesum, :log10_topn_components_sizesum,
     :topn_nsources, :topn_nsinks,
     :ncompsources, :ncompsinks,
-    :nflows, :ncompflows, :flow_avglen, :compflow_avglen,
+    :nflows, :ncompflows,
+    :flow_avglen, :flow_avginvlen,
+    :compflow_avglen, :compflow_avginvlen,
     :flow_avgweight, :flow_avghopweight,
     :compflow_avgweight,
     :flow_distance, :compflow_distance]
