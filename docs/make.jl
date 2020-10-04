@@ -13,6 +13,7 @@ makedocs(
     clean = true,
     pages = [
         "Introduction" => "index.md",
+        "Network Diffusion" => "network_diffusion.md",
         "SCC Tree" => "scctree.md",
         "Utilities" => "utils.md",
     ],
