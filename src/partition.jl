@@ -109,25 +109,25 @@ end
 # partition of an integer vector
 const IndicesPartition = Partition{Int}
 
-IndicesPartition(n::Integer=0; ngroups::Integer=n) =
-    reset!(IndicesPartition(Vector{Int}(undef, n), Vector{Int}()), ngroups=ngroups)
+IndicesPartition(n::Integer=0; nparts::Integer=n) =
+    reset!(IndicesPartition(Vector{Int}(undef, n), Vector{Int}()), nparts=nparts)
 
 """
 Resets `IntegerPartition`.
 
-If `ngroups == 1`, the partition is reset into `[[1, 2, 3, ..., n]]`.
-If `n == ngroups`, sets the partition to `[[1], [2], [3], ..., [n]]`.
+If `nparts == 1`, the partition is reset into `[[1, 2, 3, ..., n]]`.
+If `n == nparts`, sets the partition to `[[1], [2], [3], ..., [n]]`.
 """
-function reset!(p::IndicesPartition, n::Integer=length(p.elems); ngroups::Integer=n)
-    if (ngroups != n) && (ngroups != 1)
-        throw(ArgumentError("No default method to divide $n element(s) into $ngroups group(s)"))
+function reset!(p::IndicesPartition, n::Integer=nelems(p); nparts::Integer=n)
+    if (nparts != n) && (nparts != 1)
+        throw(ArgumentError("No default method to divide $n element(s) into $nparts group(s)"))
     end
     resize!(p.elems, n) .= 1:n
-    resize!(p.starts, ngroups+1)
-    if ngroups == 1
+    resize!(p.starts, nparts+1)
+    if nparts == 1
         p.starts[1] = 1
         p.starts[2] = n+1
-    elseif ngroups == n
+    elseif nparts == n
         p.starts .= 1:n+1
     end
     return p
