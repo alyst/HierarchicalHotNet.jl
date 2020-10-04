@@ -14,6 +14,7 @@ makedocs(
     pages = [
         "Introduction" => "index.md",
         "SCC Tree" => "scctree.md",
+        "Utilities" => "utils.md",
     ],
 )
 
