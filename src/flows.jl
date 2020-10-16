@@ -397,8 +397,8 @@ end
 Trace the random walk (given by *walk_adjmtx*) steps in the original graph
 (given by *step_adjmtx*).
 """
-function tracesteps!(
-    stepgraph::AbstractVector{Diedge},
+function traceflows!(
+    flow2paths::AbstractDict{Diedge, Partition{Int}},
     step_adjmtx::AbstractMatrix,
     steptest::EdgeTest,
     walk_adjmtx::AbstractMatrix,
@@ -414,9 +414,6 @@ function tracesteps!(
     size(walk_adjmtx) == size(step_adjmtx) ||
         throw(DimensionMismatch("Steps and walk adjacency matrices must have equal sizes ($(size(step_adjmtx)) and $(size(walk_adjmtx)) given)"))
     (maxsteps > 0) || throw(ArgumentError("maxsteps must be positive ($(maxsteps) given)"))
-
-    edgesetpool = objpool(pools, Set{Pair{Int, Int}})
-    tracededges = empty!(borrow!(edgesetpool))
 
     vtxsetpool = objpool(pools, Set{Int})
     visited = empty!(borrow!(vtxsetpool)) # local visited vertex
@@ -450,14 +447,15 @@ function tracesteps!(
             end
             if u > 0 # follow v->u Diedge
                 # v -...-> u path is present in the walk graph, and u is a sink,
-                # add its steps to the result
+                # add its intermediate vertices to the result
                 if isvalidedge(walkedges[u], walktest) && (isnothing(sinks) || in(u, sinks))
-                    for i in 2:length(dfs_stack)
-                        push!(tracededges, dfs_stack[i-1][1] => dfs_stack[i][1])
+                    flowpaths = get!(() -> Partition{Int}(), flow2paths, v => u)
+                    @inbounds for i in 2:length(dfs_stack)
+                        pushelem!(flowpaths, dfs_stack[i][1])
                     end
-                    push!(tracededges, dfs_stack[end][1] => u)
+                    closepart!(flowpaths) # finish given path
                 end
-                # if v -..-> u path has not reached maximum length, continue DFS
+                # if v ->..-> u path has not reached maximum length, continue DFS
                 if length(dfs_stack) < maxsteps
                     push!(dfs_stack, (u, 0))
                     push!(visited, u)
@@ -468,17 +466,13 @@ function tracesteps!(
         end
     end
     # fill the stepgraph with traced steps
-    empty!(stepgraph)
-    for step in tracededges
-        push!(stepgraph, step)
-    end
     release!(dfspool, dfs_stack)
-    release!(edgesetpool, tracededges)
     release!(vtxsetpool, visited)
-    return stepgraph
+    return flow2paths
 end
 
-tracesteps(step_adjmtx::AbstractMatrix, steptest::EdgeTest,
+traceflows(step_adjmtx::AbstractMatrix, steptest::EdgeTest,
            walk_adjmtx::AbstractMatrix, walktest::EdgeTest,
            pools::Union{ObjectPools, Nothing} = nothing; kwargs...) =
-    tracesteps!(Vector{Diedge}(), step_adjmtx, steptest, walk_adjmtx, walktest, pools; kwargs...)
+    traceflows!(Dict{Diedge, Partition{Int}}(),
+                step_adjmtx, steptest, walk_adjmtx, walktest, pools; kwargs...)

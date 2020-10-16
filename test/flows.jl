@@ -193,39 +193,41 @@ end
     end
 end
 
-@testset "tracesteps()" begin
+@testset "traceflows()" begin
+    FlowPathsDict = Dict{HHN.Diedge, HHN.Partition{Int}}
+
     @testset "trivial" begin
-        @test_throws DimensionMismatch HHN.tracesteps(fill(0.0, (1, 2)), HHN.EdgeTest{Float64}(threshold=0.5),
+        @test_throws DimensionMismatch HHN.traceflows(fill(0.0, (1, 2)), HHN.EdgeTest{Float64}(threshold=0.5),
                                                       fill(0.0, (1, 2)), HHN.EdgeTest{Float64}(threshold=0.5))
-        @test_throws DimensionMismatch HHN.tracesteps(fill(0.0, (1, 1)), HHN.EdgeTest{Float64}(threshold=0.5),
+        @test_throws DimensionMismatch HHN.traceflows(fill(0.0, (1, 1)), HHN.EdgeTest{Float64}(threshold=0.5),
                                                       fill(0.0, (2, 2)), HHN.EdgeTest{Float64}(threshold=0.5))
 
-        @test HHN.tracesteps(fill(0.25, (1, 1)), HHN.EdgeTest{Float64}(threshold=0.5),
-                             fill(0.5, (1, 1)), HHN.EdgeTest{Float64}(threshold=0.5)) == Vector{HHN.Diedge}()
-        @test HHN.tracesteps(fill(0.25, (1, 1)), HHN.EdgeTest{Float64}(threshold=0.25),
-                             fill(0.5, (1, 1)), HHN.EdgeTest{Float64}(threshold=0.75)) == Vector{HHN.Diedge}()
-        @test HHN.tracesteps(fill(0.25, (1, 1)), HHN.EdgeTest{Float64}(threshold=0.25),
-                             fill(0.5, (1, 1)), HHN.EdgeTest{Float64}(threshold=0.5)) == Vector{HHN.Diedge}() # the flow exist, but we don't create loop edges
+        @test HHN.traceflows(fill(0.25, (1, 1)), HHN.EdgeTest{Float64}(threshold=0.5),
+                             fill(0.5, (1, 1)), HHN.EdgeTest{Float64}(threshold=0.5)) == FlowPathsDict()
+        @test HHN.traceflows(fill(0.25, (1, 1)), HHN.EdgeTest{Float64}(threshold=0.25),
+                             fill(0.5, (1, 1)), HHN.EdgeTest{Float64}(threshold=0.75)) == FlowPathsDict()
+        @test HHN.traceflows(fill(0.25, (1, 1)), HHN.EdgeTest{Float64}(threshold=0.25),
+                             fill(0.5, (1, 1)), HHN.EdgeTest{Float64}(threshold=0.5)) == FlowPathsDict() # the flow exist, but we don't create loop edges
     end
 
     @testset "simple" begin
         stepmtx = [0.0 0.0 0.0; 1.0 0.0 0.0; 0.0 1.0 0.0]
         walkmtx = [0.0 0.0 0.0; 0.0 0.0 0.0; 1.0 0.0 0.0]
-        @test HHN.tracesteps(stepmtx, HHN.EdgeTest{Float64}(threshold=0.5),
-                             walkmtx, HHN.EdgeTest{Float64}(threshold=0.5)) == [1 => 2, 2 => 3]
-        @test HHN.tracesteps(stepmtx, HHN.EdgeTest{Float64}(threshold=0.5),
+        @test HHN.traceflows(stepmtx, HHN.EdgeTest{Float64}(threshold=0.5),
+                             walkmtx, HHN.EdgeTest{Float64}(threshold=0.5)) == Dict((1=>3) => [[2]])
+        @test HHN.traceflows(stepmtx, HHN.EdgeTest{Float64}(threshold=0.5),
                              walkmtx, HHN.EdgeTest{Float64}(threshold=0.5),
-                             sinks = [2]) == Pair{Int, Int}[]
-        @test HHN.tracesteps(stepmtx, HHN.EdgeTest{Float64}(threshold=0.5),
+                             sinks = [2]) == FlowPathsDict()
+        @test HHN.traceflows(stepmtx, HHN.EdgeTest{Float64}(threshold=0.5),
                              walkmtx, HHN.EdgeTest{Float64}(threshold=0.5),
-                             sources = [2]) == Pair{Int, Int}[]
-        @test HHN.tracesteps(stepmtx, HHN.EdgeTest{Float64}(threshold=0.5),
+                             sources = [2]) == FlowPathsDict()
+        @test HHN.traceflows(stepmtx, HHN.EdgeTest{Float64}(threshold=0.5),
                              walkmtx, HHN.EdgeTest{Float64}(threshold=0.5),
-                             sinks = [1], sources = [2]) == Pair{Int, Int}[]
+                             sinks = [1], sources = [2]) == FlowPathsDict()
 
         stepmtx = [0.0 0.0 0.0; 1.0 0.0 0.0; 1.0 1.0 0.0]
         walkmtx = [0.0 0.0 0.0; 0.0 0.0 0.0; 1.0 0.0 0.0]
-        @test HHN.tracesteps(stepmtx, HHN.EdgeTest{Float64}(threshold=0.5),
-                             walkmtx, HHN.EdgeTest{Float64}(threshold=0.5)) == [1 => 3, 1 => 2, 2 => 3]
+        @test HHN.traceflows(stepmtx, HHN.EdgeTest{Float64}(threshold=0.5),
+                             walkmtx, HHN.EdgeTest{Float64}(threshold=0.5)) == Dict((1=>3) => [[2], []])
     end
 end
