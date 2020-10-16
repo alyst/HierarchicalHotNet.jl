@@ -132,20 +132,18 @@ function export_flowgraph(
     end
 
     source_stats_df = combine(groupby(flows_df, :source)) do outedges_df
-        sinks = sort!(unique(collect(zip(outedges_df.flowlen,
-                                         outedges_df.target))))
+        sinks = sort!(unique(collect(zip(outedges_df.target, outedges_df.flowlen))),
+                      by=x -> (x[2], x[1]))
         sourcesinks = sort!(unique!(outedges_df[outedges_df.flow .== "loop", :target]))
-        DataFrame(flows_to = isempty(sinks) ? missing :
-                              join(string.(last.(sinks), '(', first.(sinks),')'), ' '),
+        DataFrame(flows_to = isempty(sinks) ? missing : [sinks],
                   nflows_to = length(sinks),
-                  loops_through = isempty(sourcesinks) ? missing : join(sourcesinks, ' '),
+                  loops_through = isempty(sourcesinks) ? missing : [sourcesinks],
                   nloops_through = length(sourcesinks))
     end
     target_stats_df = combine(groupby(flows_df, :target)) do inedges_df
-        sources = sort!(unique(collect(zip(inedges_df.flowlen,
-                                           inedges_df.source))))
-        DataFrame(flows_from = isempty(sources) ? missing :
-                               join(string.(last.(sources), '(', first.(sources),')'), ' '),
+        sources = sort!(unique(collect(zip(inedges_df.source, inedges_df.flowlen))),
+                        by=x -> (x[2], x[1]))
+        DataFrame(flows_from = isempty(sources) ? missing : [sources],
                   nflows_from = length(sources))
     end
 
