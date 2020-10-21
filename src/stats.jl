@@ -441,6 +441,16 @@ const treecut_metrics = [
     :compflow_avgweight,
     :flow_distance, :compflow_distance]
 
+function add_bins!(df::AbstractDataFrame, col::Symbol, bin_bounds::AbstractVector{<:Number})
+    df[:, string(col, "_bin")] .= searchsortedlast.(Ref(bin_bounds), df[!, col])
+    return df
+end
+
+function add_bins!(df::DataFrame, col::Symbol, bin_bounds::AbstractVector{<:Number})
+    df[!, string(col, "_bin")] = searchsortedlast.(Ref(bin_bounds), df[!, col])
+    return df
+end
+
 function bin_treecut_stats(
     cutstats_df::AbstractDataFrame;
     by_cols::Union{AbstractVector{Symbol}, Symbol, Nothing} = nothing,
@@ -453,9 +463,13 @@ function bin_treecut_stats(
                cutstats_df.threshold)
     used_thresholds_range = extrema(used_thresholds)
     threshold_bins = quantile(used_thresholds, 0.0:(1/threshold_nbins):1.0)
-    threshold_bin_centers = 0.5 .* (threshold_bins[1:(length(threshold_bins)-1)] .+ threshold_bins[2:end])
-    cutstats_df = isa(cutstats_df, DataFrame) ? copy(cutstats_df, copycols=false) : copy(cutstats_df)
-    cutstats_df.threshold_bin = searchsortedlast.(Ref(threshold_bins), cutstats_df.threshold)
+    @assert length(threshold_bins) == threshold_nbins+1
+
+    # copy to avoid modifying original frame
+    cutstats_df = isa(cutstats_df, DataFrame) ?
+            copy(cutstats_df, copycols=false) :
+            select(cutstats_df, [stat_cols; by_cols; [:threshold]])
+    add_bins!(cutstats_df, :threshold, threshold_bins)
 
     if by_cols isa AbstractVector
         used_by_cols = push!(copy(by_cols), :threshold_bin)
@@ -467,8 +481,15 @@ function bin_treecut_stats(
 
     binstats_df = combine(groupby(cutstats_df, used_by_cols),
                           [col => median => col for col in stat_cols]...)
-    binstats_df.threshold = [0 < bin <= threshold_nbins ? threshold_bin_centers[bin] : missing
-                             for bin in binstats_df.threshold_bin]
+    binstats_df.threshold_binmin = missings(Float64, nrow(binstats_df))
+    binstats_df.threshold_binmid = missings(Float64, nrow(binstats_df))
+    binstats_df.threshold_binmax = missings(Float64, nrow(binstats_df))
+    @inbounds for (i, bin) in enumerate(binstats_df.threshold_bin)
+        (0 < bin < threshold_nbins) || continue
+        binstats_df.threshold_binmin[i] = binmin = threshold_bins[bin]
+        binstats_df.threshold_binmax[i] = binmax = threshold_bins[bin+1]
+        binstats_df.threshold_binmid[i] = 0.5*(binmin + binmax)
+    end
     return binstats_df
 end
 
@@ -490,8 +511,8 @@ function aggregate_treecut_binstats(
         insert!(used_quantiles, med_pos, 0.5)
     end
 
-    thresholds_df = binstats_df[.!nonunique(binstats_df, [:threshold_bin, :threshold]),
-                                   [:threshold_bin, :threshold]]
+    thresholds_df = binstats_df[.!nonunique(binstats_df, [:threshold_bin, :threshold_binmid]),
+                                   [:threshold_bin, :threshold_binmid]]
     @assert nrow(thresholds_df) == length(unique(thresholds_df.threshold_bin))
 
     if by_cols isa AbstractVector
@@ -515,16 +536,18 @@ function aggregate_treecut_binstats(
     leftjoin(aggstats_df, thresholds_df, on=:threshold_bin)
 end
 
-function extreme_treecut_binstats(
-    binstats_df::AbstractDataFrame,
+function extreme_treecut_stats(
+    stats_df::AbstractDataFrame,
     perm_aggstats_df::AbstractDataFrame;
     extra_join_cols::Union{Nothing, AbstractVector{Symbol}} = nothing,
-    stat_cols::AbstractVector{Symbol} = intersect(treecut_metrics, propertynames(binstats_df))
+    metric_cols::AbstractVector{Symbol} = intersect(treecut_metrics, propertynames(stats_df)),
+    stat_maxquantile::Union{Nothing, Number} = 0.25,
+    threshold_range::Union{Tuple{<:Number, <:Number}, Nothing}=nothing
 )
     perm_aggstats_cols = intersect(treecut_metrics, propertynames(perm_aggstats_df))
-    join_cols = [:threshold, :threshold_bin]
+    join_cols = [:threshold_bin]
     isnothing(extra_join_cols) || unique!(append!(join_cols, extra_join_cols))
-    joinstats_df = leftjoin(select(binstats_df, [join_cols; stat_cols]),
+    joinstats_df = leftjoin(select(stats_df, [join_cols; metric_cols; [:threshold]]),
                             select(perm_aggstats_df, [join_cols; :quantile; perm_aggstats_cols]),
                             on=join_cols, makeunique=true)
     by_cols = [:quantile]
@@ -533,20 +556,43 @@ function extreme_treecut_binstats(
         reduce(vcat, [begin
             perm_col = Symbol(col, "_1")
             res = reduce(vcat, [begin
-                deltas = [ismissing(r[col]) || ismissing(r[perm_col]) ? 0.0 : r[col] - r[perm_col]
+                deltas = [ismissing(r[col]) || ismissing(r[perm_col]) || isnan(r[col]) || isnan(r[perm_col]) ? naval : r[col] - r[perm_col]
                           for r in eachrow(df)]
-                delta_val, delta_pos = aggfun(deltas)
-                DataFrame(
-                    :metric => col,
-                    :value => df[delta_pos, col],
-                    :delta_type => aggtype,
-                    :permuted_value => df[delta_pos, perm_col],
-                    :delta => delta_val,
-                    :threshold_bin => df.threshold_bin[delta_pos],
-                    :threshold => df.threshold[delta_pos]
-                )
-            end for (aggtype, aggfun) in ["min" => findmin, "max" => findmax]])
+                vals = [("opt", aggfun(deltas)[2])]
+                if !isnothing(stat_maxquantile)
+                    qrange = (aggfun((0.0, 1.0))[1],
+                              aggfun((stat_maxquantile, 1 - stat_maxquantile))[1])
+                    if qrange[1] > qrange[2]
+                        qrange = (qrange[2], qrange[1])
+                    end
+                    drange = quantile(deltas, qrange)
+                    leftpos = rightpos = 0
+                    @inbounds for i in 1:nrow(df)
+                        (drange[1] <= deltas[i] <= drange[2]) || continue
+                        if (leftpos == 0) || (df.threshold[leftpos] > df.threshold[i])
+                            leftpos = i
+                        end
+                        if (rightpos == 0) || (df.threshold[rightpos] < df.threshold[i])
+                            rightpos = i
+                        end
+                    end
+                    (leftpos > 0) && push!(vals, ("left", leftpos))
+                    (rightpos > 0) && push!(vals, ("right", rightpos))
+                end
+                reduce(vcat, [begin
+                    DataFrame(
+                        :metric => col,
+                        :stat => aggtype,
+                        :value_type => valtype,
+                        :value => df[valpos, col],
+                        :permuted_value => df[valpos, perm_col],
+                        :delta => df[valpos, col] - df[valpos, perm_col],
+                        :threshold => df.threshold[valpos],
+                        :threshold_bin => df.threshold_bin[valpos]
+                    )
+                end for (valtype, valpos) in vals])
+            end for (aggtype, (aggfun, naval)) in ["min" => (findmin, Inf), "max" => (findmax, -Inf)]])
             res
-        end for col in stat_cols])
+        end for col in metric_cols])
     end
 end
