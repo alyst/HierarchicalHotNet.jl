@@ -184,11 +184,15 @@ function expand_componentsflowgraph!(
     adjmtx::AbstractMatrix,
     sources::AbstractVector{Int}, sinks::AbstractVector{Int},
     test::EdgeTest,
-    pools::Union{ObjectPools, Nothing} = nothing
+    pools::Union{ObjectPools, Nothing} = nothing;
+    mincompsize::Union{Integer, Nothing} = nothing
 )
     # expand component flows into source/sink node flows
     empty!(flows)
     @inbounds for ((i, j), info) in compflows
+        if !isnothing(mincompsize) # skip small components
+            ((partlength(comps, i) < mincompsize) || (partlength(comps, j) < mincompsize)) && continue
+        end
         for src in compsources[i], snk in compsinks[j]
             push!(flows, (src => snk, i => j, info))
         end
@@ -200,6 +204,9 @@ function expand_componentsflowgraph!(
         boolpool = arraypool(pools, Bool)
         used_comps = fill!(borrow!(boolpool, length(comps)), false)
         @inbounds for (i, j) in compgraph
+            if !isnothing(mincompsize) # skip small components
+                ((partlength(comps, i) < mincompsize) || (partlength(comps, j) < mincompsize)) && continue
+            end
             used_comps[i] = true
             used_comps[j] = true
             (i == j) && continue # skip components self-loops
@@ -239,7 +246,8 @@ function flowgraph!(
     adjmtx::AbstractMatrix,
     sources::AbstractVector{Int}, sinks::AbstractVector{Int},
     test::EdgeTest,
-    pools::Union{ObjectPools, Nothing} = nothing
+    pools::Union{ObjectPools, Nothing} = nothing;
+    mincompsize::Union{Integer, Nothing} = nothing
 )
     flowpool = arraypool(pools, Flow)
     compflows = borrow!(flowpool)
@@ -254,7 +262,8 @@ function flowgraph!(
                          adjmtx, sources, sinks, test, pools)
     expand_componentsflowgraph!(subgraph, flows, compgraph, compflows,
                                 compsources, compsinks, comps,
-                                adjmtx, sources, sinks, test, pools)
+                                adjmtx, sources, sinks, test, pools;
+                                mincompsize=mincompsize)
 
     release!(ptnpool, compsinks)
     release!(ptnpool, compsources)
@@ -272,16 +281,18 @@ flowgraph!(
     tree::SCCTree, adjmtx::AbstractMatrix,
     sources::AbstractVector{Int}, sinks::AbstractVector{Int},
     test::EdgeTest,
-    pools::Union{ObjectPools, Nothing} = nothing
+    pools::Union{ObjectPools, Nothing} = nothing;
+    kwargs...
 ) = flowgraph!(subgraph, flows, cut!(empty!(comps), tree, test.threshold),
-               adjmtx, sources, sinks, test, pools)
+               adjmtx, sources, sinks, test, pools; kwargs...)
 
 flowgraph(tree::SCCTree, adjmtx::AbstractMatrix,
           sources::AbstractVector{Int}, sinks::AbstractVector{Int},
           test::EdgeTest,
-          pools::Union{ObjectPools, Nothing} = nothing
+          pools::Union{ObjectPools, Nothing} = nothing;
+          kwargs...
 ) = flowgraph!(Vector{CompDiedge}(), Vector{CompFlow}(), IndicesPartition(),
-               tree, adjmtx, sources, sinks, test, pools)
+               tree, adjmtx, sources, sinks, test, pools; kwargs...)
 
 function nflows(
     comps::IndicesPartition,

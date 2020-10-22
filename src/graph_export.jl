@@ -14,14 +14,17 @@ function export_flowgraph(
     pvalue_mw_max::Number=0.05,
     pvalue_fisher_max::Number=0.05,
     verbose::Bool=false,
-    pools::Union{ObjectPools, Nothing}=nothing
+    pools::Union{ObjectPools, Nothing}=nothing,
+    mincompsize::Union{Integer, Nothing}=nothing,
+    exported_sinks::AbstractVector{<:Integer}=sinks
 ) where T
     nvertices(tree) == size(walkmatrix, 1) == size(walkmatrix, 2) ||
         throw(DimensionMismatch("Number of tree vertices ($(nvertices(tree))) doesn't match the walk matrix dimensions ($(size(walkmatrix)))"))
     W = eltype(walkmatrix)
+    verbose && isempty(sinks) && @warn "No sinks provided, flowgraph will be empty"
     subgraph, flows, conncomps = flowgraph(tree, walkmatrix, sources, sinks,
                                            EdgeTest{T}(threshold=threshold),
-                                           pools)
+                                           pools, mincompsize=mincompsize)
     components_df = conncomponents_stats(conncomps,
                                          average_weights=false,
                                          mannwhitney_tests=false)
@@ -107,7 +110,7 @@ function export_flowgraph(
         (pos > 0) && (vertices_df[pos, :is_source] = true)
     end
     vertices_df[!, :is_sink] .= false
-    @inbounds for v in sinks
+    @inbounds for v in exported_sinks
         pos = vertex2pos[v]
         (pos > 0) && (vertices_df[pos, :is_sink] = true)
     end
@@ -147,6 +150,7 @@ function export_flowgraph(
     flows_df.flowlen = Vector{Int}()
     flows_df.floweight = Vector{W}()
     for ((src, trg), (srccomp, trgcomp), info) in flows
+        (vertex2pos[trg] > 0 && vertices_df.is_sink[vertex2pos[trg]]) || continue
         (comp2new[srccomp] != 0) && (comp2new[trgcomp] != 0) || continue
         push!(flows_df, (source = src,
                          target = trg,
@@ -157,20 +161,31 @@ function export_flowgraph(
                          floweight = info.weight))
     end
 
-    source_stats_df = combine(groupby(flows_df, :source)) do outedges_df
-        sinks = sort!(unique(collect(zip(outedges_df.target, outedges_df.flowlen))),
-                      by=x -> (x[2], x[1]))
-        sourcesinks = sort!(unique!(outedges_df[outedges_df.flow .== "loop", :target]))
-        DataFrame(flows_to = isempty(sinks) ? missing : [sinks],
-                  nflows_to = length(sinks),
-                  loops_through = isempty(sourcesinks) ? missing : [sourcesinks],
-                  nloops_through = length(sourcesinks))
-    end
-    target_stats_df = combine(groupby(flows_df, :target)) do inedges_df
-        sources = sort!(unique(collect(zip(inedges_df.source, inedges_df.flowlen))),
+    if nrow(flows_df) > 0
+        source_stats_df = combine(groupby(flows_df, :source)) do outedges_df
+            sinks = sort!(unique(collect(zip(outedges_df.target, outedges_df.flowlen))),
                         by=x -> (x[2], x[1]))
-        DataFrame(flows_from = isempty(sources) ? missing : [sources],
-                  nflows_from = length(sources))
+            sourcesinks = sort!(unique!(outedges_df[outedges_df.flow .== "loop", :target]))
+            DataFrame(flows_to = isempty(sinks) ? missing : [sinks],
+                      nflows_to = length(sinks),
+                      loops_through = isempty(sourcesinks) ? missing : [sourcesinks],
+                      nloops_through = length(sourcesinks))
+        end
+        target_stats_df = combine(groupby(flows_df, :target)) do inedges_df
+            sources = sort!(unique(collect(zip(inedges_df.source, inedges_df.flowlen))),
+                            by=x -> (x[2], x[1]))
+            DataFrame(flows_from = isempty(sources) ? missing : [sources],
+                      nflows_from = length(sources))
+        end
+    else
+        source_stats_df = DataFrame(source = Int[],
+                                    flows_to = Vector{Int}[],
+                                    nflows_to = Int[],
+                                    loops_through = Vector{Int}[],
+                                    nloops_through = Int[],)
+        target_stats_df = DataFrame(target = Int[],
+                                    flows_from = Vector{Int}[],
+                                    nflows_from = Int[],)
     end
 
     if !isnothing(flowpath_steps)
