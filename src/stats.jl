@@ -566,18 +566,18 @@ function extreme_treecut_stats(
                         qrange = (qrange[2], qrange[1])
                     end
                     drange = quantile(deltas, qrange)
-                    leftpos = rightpos = 0
+                    smallpos = bigpos = 0
                     @inbounds for i in 1:nrow(df)
                         (drange[1] <= deltas[i] <= drange[2]) || continue
-                        if (leftpos == 0) || (df.threshold[leftpos] > df.threshold[i])
-                            leftpos = i
+                        if (smallpos == 0) || (df.threshold[smallpos] < df.threshold[i])
+                            smallpos = i
                         end
-                        if (rightpos == 0) || (df.threshold[rightpos] < df.threshold[i])
-                            rightpos = i
+                        if (bigpos == 0) || (df.threshold[bigpos] > df.threshold[i])
+                            bigpos = i
                         end
                     end
-                    (leftpos > 0) && push!(vals, ("left", leftpos))
-                    (rightpos > 0) && push!(vals, ("right", rightpos))
+                    (smallpos > 0) && push!(vals, ("small", smallpos))
+                    (bigpos > 0) && push!(vals, ("big", bigpos))
                 end
                 reduce(vcat, [begin
                     DataFrame(
