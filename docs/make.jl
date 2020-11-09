@@ -15,6 +15,9 @@ makedocs(
         "Introduction" => "index.md",
         "Network Diffusion" => "network_diffusion.md",
         "SCC Tree" => "scctree.md",
+        "Source → Sink Flows" => "source_sink.md",
+        "Statistics" => "stats.md",
+        "Export" => "export.md",
         "Utilities" => "utils.md",
     ],
 )
