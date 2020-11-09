@@ -310,8 +310,8 @@ Returns the *NamedTuple* with the following fields
  * `ncompoflows`: the number of unique *component(source)* → *component(sink)* pairs for each *source* → *sink* flow
  * `flowlen_sum`: total length of all flows (flow length = the number of SCCs it crosses)
  * `compflowlen_sum`: total length of flows (every unique pairs of source/sink components is counted once)
- * `flowinvlen_sum`: the sum of ``1/\mathrm{flowlength}``
- * `compflowinvlen_sum`: the sum of ``1/\mathrm{flowlength}`` (each unique source/sink component pair is counted once)
+ * `flowinvlen_sum`: the sum of ``1/\\mathrm{flowlength}``
+ * `compflowinvlen_sum`: the sum of ``1/\\mathrm{flowlength}`` (each unique source/sink component pair is counted once)
  * `compflowlen_max`:
  * `floweight_sum`:
  * `floweight_sum`:
