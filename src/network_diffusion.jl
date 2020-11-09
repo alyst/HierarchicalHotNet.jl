@@ -1,4 +1,8 @@
 """
+    stepmatrix(g::Union{AbstractSimpleWeightedGraph, AbstractMatrix}
+               inedge_weights::Union{AbstractVector, Nothing} = nothing,
+               normalize_weights::Bool = true) -> AbstractMatrix
+
 Construct the step matrix for the random walk.
 """
 function stepmatrix(adjmtx::AbstractMatrix{<:Number};

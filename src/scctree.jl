@@ -120,12 +120,14 @@ function appendvertices!(vertices::AbstractVector, tree::SCCTree,
 end
 
 """
-    cut(tree, threshold; minsize=1) -> IndicesPartition
+    cut(tree::SCCTree, threshold; minsize=1) -> IndicesPartition
 
-Cuts the tree at the given `threshold` to get the corresponding
+Cuts the tree at the given edge weight `threshold` to get the corresponding
 strongly connected components of the original graph.
-`minsize` optional parameter specifies whether components smaller than that
-would be ignored.
+
+# Keyword arguments
+* `minsize`: the minimal number of vertices in the component.
+  Smaller connected components are skipped. By default returns components of any size.
 """
 cut(tree::SCCTree, threshold::Number; kwargs...) =
     cut!(IndicesPartition(Vector{Int}(undef, nvertices(tree)), Vector{Int}()),

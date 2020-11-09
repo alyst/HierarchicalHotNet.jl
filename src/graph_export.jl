@@ -1,3 +1,48 @@
+"""
+    export_flowgraph(tree::SCCTree{T}, threshold::Number,
+                     walkmatrix::AbstractMatrix,
+                     sources::AbstractVector{<:Integer}, sinks::AbstractVector{<:Integer};
+                     orig_diedges::Union{AbstractDataFrame, Nothing} = nothing,
+                     vertices_stats::Union{AbstractDataFrame, Nothing} = nothing,
+                     diedges_stats::Union{AbstractDataFrame, Nothing} = nothing,
+                     flowpaths::Symbol = :skip,
+                     stepmatrix::Union{AbstractMatrix, Nothing} = nothing,
+                     step_threshold::Number = 0.75 * threshold, maxsteps::Integer = 2,
+                     step_sinks::Union{AbstractVector, AbstractSet, Nothing} = nothing,
+                     step_sources::Union{AbstractVector, AbstractSet, Nothing} = nothing,
+                     flow_edges::Bool=false,
+                     pvalue_mw_max::Number=0.05,
+                     pvalue_fisher_max::Number=0.05,
+                     verbose::Bool=false,
+                     pools::Union{ObjectPools, Nothing}=nothing,
+                     mincompsize::Union{Integer, Nothing}=nothing,
+                     exported_sinks::AbstractVector{<:Integer}=sinks
+    ) -> NamedTuple
+
+Cuts the `tree` at `threshold` and exports the resulting SCC network
+as the collection of dataframes.
+
+If specified, calculates the flows from `sources` to `sinks` and returns
+them as additional edges.
+
+### Keyword arguments
+  * `orig_diedges::AbstractDataFrame`: optional collection of the original edges.
+    The metadata from this frame is added to the overlapping diedges of the SCC network.
+  * `vertices_stats::AbstractDataFrame`: optional vertices statistics
+  * `diedges_stats::AbstarctDataFrame`: optional directed edges statistics
+  * `flowpaths::Symbol`: how the flows should be traced
+     * `skip` (default): no tracing
+     * `flowattr`: trace the flows (see [`traceflows`](@ref)) and add as `flowpaths` column to *diedges* data frame
+     * `steps`: trace the flows (see [`traceflows`](@ref)) and add as extra diedges of type `step` to *diedges* data frame
+
+### Returns
+
+Named tuple with fields
+  * `components::DataFrame`: statistics for *Strongly Connected Components*
+  * `vertices::DataFrame`: network vertices
+  * `diedges::DataFrame`: directed edges
+  * `edges::DataFrame`: undirected edges
+"""
 function export_flowgraph(
     tree::SCCTree{T}, threshold::Number,
     walkmatrix::AbstractMatrix,

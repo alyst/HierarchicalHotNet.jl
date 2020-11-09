@@ -155,18 +155,18 @@ end
     scctree(g::Union{AbstractSimpleWeightedGraph, AbstractMatrix};
             method=:bisect, skipval=0, rev=false) -> SCCTree
 
-Computes the hierarchical decomposition of a weighted directed graph into
+Computes the hierarchical decomposition of the weighted directed graph `g` into
 *strongly connected components*.
 
-# Arguments
-* `g::AbstractSimpleWeightedGraph`: the graph (or its adjcency matrix
-   representation) to partition into components
-* `method::Symbol`, defaults to `:bisect`: the method for partitioning.
+Supports weighted graph objects as well as their adjacency matrix representations.
+
+# Keyword arguments
+* `method::Symbol` (defaults to `:bisect`): the method for partitioning.
    The supported methods are `:bisect` (the fastest) and `:bottomup` (slow,
    but simpler).
-* `skipval::Number`, defaults to zero: what value of the adjacency matrix
-   should be treated as no edge.
-* `rev::Bool`, default to `false`: if true, bigger edges weights are considered
+* `skipval::Number` (defaults to zero): what value of the adjacency matrix
+   should be treated as "no edge".
+* `rev::Bool` (defaults to `false`): if `true`, bigger edges weights are considered
    weaker than smaller ones
 """
 scctree(g::AbstractSimpleWeightedGraph; kwargs...) =

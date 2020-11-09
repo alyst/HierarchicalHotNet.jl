@@ -1,3 +1,9 @@
+# Statistics for network diffusion results and SCCTrees:
+# comparison of the results based on real data and random permutations
+
+# compute statistics for permutation-based weights
+# and compare them with the real data-based ones
+# the columns in `permweights` correspond to different permutations
 function _permweight_stats(weights::AbstractVector, permweights::AbstractMatrix)
     @assert length(weights) == size(permweights, 1)
     means = similar(weights)

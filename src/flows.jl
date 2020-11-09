@@ -294,6 +294,39 @@ flowgraph(tree::SCCTree, adjmtx::AbstractMatrix,
 ) = flowgraph!(Vector{CompDiedge}(), Vector{CompFlow}(), IndicesPartition(),
                tree, adjmtx, sources, sinks, test, pools; kwargs...)
 
+"""
+    nflows(comps::IndicesPartition, adjmtx::AbstractMatrix,
+           sources::AbstractVector{Int}, sinks::AbstractVector{Int},
+           test::EdgeTest;
+           maxweight::Union{Number, Nothing} = nothing,
+           used_sources::Union{AbstractVector{Int}, Nothing}=nothing,
+           used_sinks::Union{AbstractVector{Int}, Nothing}=nothing) -> NamedTupe
+
+Calculates statistics from the flows from *sources* to *sinks* vertices
+in the weighted directed graph defined by *adjmtx* and *test* and the *comps* vertex components.
+
+Returns the *NamedTuple* with the following fields
+ * `nflows`: the number of *source* → *sink* flows
+ * `ncompoflows`: the number of unique *component(source)* → *component(sink)* pairs for each *source* → *sink* flow
+ * `flowlen_sum`: total length of all flows (flow length = the number of SCCs it crosses)
+ * `compflowlen_sum`: total length of flows (every unique pairs of source/sink components is counted once)
+ * `flowinvlen_sum`: the sum of ``1/\mathrm{flowlength}``
+ * `compflowinvlen_sum`: the sum of ``1/\mathrm{flowlength}`` (each unique source/sink component pair is counted once)
+ * `compflowlen_max`:
+ * `floweight_sum`:
+ * `floweight_sum`:
+ * `compfloweight_sum`:
+ * `flowavghopweight_sum`:
+ * `ncompsources`: the number of distinct SCCs that have source nodes
+ * `ncompsinks`: the number of distinct SCCs that have sink nodes
+
+# Keyword arguments
+* `maxweight`: if specified, limits the flow weight by `maxweight`
+* `used_sources::AbstractVector{Int}`: if specified, acts as an output parameter that contains the
+   sorted list of sources that have outgoing flows
+* `used_sinks::AbstractVector{Int}`: if specified, acts as an output parameter that contains the
+   sorted list of sinks that have incoming flows
+"""
 function nflows(
     comps::IndicesPartition,
     adjmtx::AbstractMatrix,
@@ -405,8 +438,9 @@ function nflows(
 end
 
 """
-Trace the random walk (given by *walk_adjmtx*) steps in the original graph
-(given by *step_adjmtx*).
+
+Trace the random walk (specified by *walk_adjmtx* and *walktest*) steps in the original graph
+(given by *step_adjmtx* and *steptest*).
 """
 function traceflows!(
     flow2paths::AbstractDict{Diedge, Partition{Int}},
