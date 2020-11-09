@@ -56,6 +56,11 @@ end
 Calculates statistics for the permuted vertex weights distribution and how it
 is different from the actual weights.
 
+Returns the data frame with per-vertex mean, standard deviation,
+median, MAD and the probability that permuted value is greater/lower than the corresponding real value
+for the weights of the original matrix (`weights`) as well as random walk matrix weights (`walkweights`).
+
+### Parameters
 * `weights`: weights of the vertices in the original network
 * `walkweights`: weights of the vertices after network diffusion analysis
   (stationary random walk distribution)
@@ -91,6 +96,8 @@ end
 
 Calculates statistics for the directed edges permuted weights distribution and how it
 is different from the actual weights of directed edges.
+
+The output is similar to [`HieararchicalHotNet.vertex_stats`](@ref) for vertices.
 """
 function diedge_stats(weights::AbstractMatrix{<:Number},
                       walkweights::AbstractMatrix{<:Number},
@@ -138,6 +145,9 @@ function diedge_stats(nvertices::Integer, diedge_indices::AbstractVector{<:Integ
     return res
 end
 
+"""
+Calculate per-connected component statistics.
+"""
 function conncomponents_stats(
     conncomps::IndicesPartition,
     vertex_weights::Union{AbstractVector, Nothing} = nothing,
@@ -223,6 +233,9 @@ function conncomponents_stats(
     return res
 end
 
+"""
+Calculate SCC network statistic for each cutting threshold of `tree`.
+"""
 function treecut_stats(tree::SCCTree;
                        walkmatrix::Union{AbstractMatrix, Nothing}=nothing,
                        maxweight::Union{Number, Nothing}=nothing,
@@ -484,6 +497,15 @@ function add_bins!(df::DataFrame, col::Symbol, bin_bounds::AbstractVector{<:Numb
     return df
 end
 
+"""
+    bin_treecut_stats(cutstats_df::AbstractDataFrame) -> DataFrame
+
+Calculates binned treecut statistics.
+
+Takes the output of [`HieararchicalHotNet.treecut_stats`](@ref) from
+multiple SCC trees, identif threshold bins and calculate the average metric values
+within each bin.
+"""
 function bin_treecut_stats(
     cutstats_df::AbstractDataFrame;
     by_cols::Union{AbstractVector{Symbol}, Symbol, Nothing} = nothing,
@@ -532,6 +554,14 @@ quantile_suffix(q::Real) =
             r"^(\d)\." => s"0\1",
             r"\.(\d)" => s"\1"])
 
+"""
+    aggregate_treecut_binstats(binstats_df::AbstractDataFrame) -> DataFrame
+
+Aggregates the binned treecut statistics.
+
+Takes the output of [`HierarchicalHotNet.bin_treecut_stats`](@ref) and
+calculates the metric values for the specified quantiles.
+"""
 function aggregate_treecut_binstats(
     binstats_df::AbstractDataFrame;
     by_cols::Union{AbstractVector{Symbol}, Symbol, Nothing} = nothing,
@@ -569,6 +599,12 @@ function aggregate_treecut_binstats(
     leftjoin(aggstats_df, thresholds_df, on=:threshold_bin)
 end
 
+"""
+    extreme_treecut_stats(stats_df::AbstractDataFrame) -> DataFrame
+
+Calculates the threshold and corresponding values, where the difference
+between real and permutation metrics are maximal/minimal.
+"""
 function extreme_treecut_stats(
     stats_df::AbstractDataFrame,
     perm_aggstats_df::AbstractDataFrame;

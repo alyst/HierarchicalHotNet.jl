@@ -457,7 +457,7 @@ Trace the random walk (specified by *walk_adjmtx* and *walktest*) steps in the o
   If not specified, all vertices are used as path ends.
 * `maxsteps=2`: maximal number of steps in a traced path, longer paths are discarded.
 
-Returns the mapping from the flow diedges to the [`HierarchicalHotNet.Parition`](@ref)
+Returns the mapping from the flow diedges to the [`HierarchicalHotNet.Partition`](@ref)
 object. Each part corresponds to the path, from diedge start to diedge end, in the original network,
 and the part elements are the indices of the intermedidate vertices along the path (start and end not included).
 """
