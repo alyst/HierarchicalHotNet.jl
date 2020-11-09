@@ -47,6 +47,23 @@ function _graph_stats!(res::AbstractDataFrame,
     return res
 end
 
+"""
+    vertex_stats(weights::AbstractVector{<:Number},
+                 walkweights::AbstractVector{<:Number},
+                 permweights::AbstractMatrix{<:Number},
+                 walkpermweights::AbstractMatrix{<:Number}) -> DataFrame
+
+Calculates statistics for the permuted vertex weights distribution and how it
+is different from the actual weights.
+
+* `weights`: weights of the vertices in the original network
+* `walkweights`: weights of the vertices after network diffusion analysis
+  (stationary random walk distribution)
+* `permweights`: matrix of permuted weights; rows correspond to vertices,
+  columns -- to permutations
+* `walkpermweights`: matrix of vertex weights based on network diffusion analysis
+  using `permweights` as input; rows correspond to vertices, columns to permutations
+"""
 function vertex_stats(weights::AbstractVector{<:Number},
                       walkweights::AbstractVector{<:Number},
                       permweights::AbstractMatrix{<:Number},
@@ -65,6 +82,16 @@ function vertex_stats(weights::AbstractVector{<:Number},
     return res
 end
 
+
+"""
+    diedge_stats(weights::AbstractVector{<:Number},
+                 walkweights::AbstractVector{<:Number},
+                 permweights::AbstractMatrix{<:Number},
+                 walkpermweights::AbstractMatrix{<:Number}) -> DataFrame
+
+Calculates statistics for the directed edges permuted weights distribution and how it
+is different from the actual weights of directed edges.
+"""
 function diedge_stats(weights::AbstractMatrix{<:Number},
                       walkweights::AbstractMatrix{<:Number},
                       permweights::AbstractArray{<:Number, 3},

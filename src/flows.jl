@@ -438,9 +438,28 @@ function nflows(
 end
 
 """
+    traceflows!(flow2paths::AbstractDict{Diedge, Partition{Int}},
+                step_adjmtx::AbstractMatrix,
+                steptest::EdgeTest,
+                walk_adjmtx::AbstractMatrix,
+                walktest::EdgeTest;
+                sources::Union{AbstractVector, AbstractSet, Nothing} = nothing,
+                sinks::Union{AbstractVector, AbstractSet, Nothing} = nothing,
+                maxsteps::Integer=2) -> Dict{Diedge, Partition{Int}}
 
 Trace the random walk (specified by *walk_adjmtx* and *walktest*) steps in the original graph
 (given by *step_adjmtx* and *steptest*).
+
+### Keyword arguments
+* `sources` (optional): the indices of vertices to use as path starts.
+  If not specified, all vertices are used as path starts.
+* `sinks` (optional): the indices of vertices to use as path ends.
+  If not specified, all vertices are used as path ends.
+* `maxsteps=2`: maximal number of steps in a traced path, longer paths are discarded.
+
+Returns the mapping from the flow diedges to the [`HierarchicalHotNet.Parition`](@ref)
+object. Each part corresponds to the path, from diedge start to diedge end, in the original network,
+and the part elements are the indices of the intermedidate vertices along the path (start and end not included).
 """
 function traceflows!(
     flow2paths::AbstractDict{Diedge, Partition{Int}},
@@ -516,6 +535,16 @@ function traceflows!(
     return flow2paths
 end
 
+"""
+    traceflows(step_adjmtx::AbstractMatrix, steptest::EdgeTest,
+               walk_adjmtx::AbstractMatrix, walktest::EdgeTest;
+               kwargs...) -> Dict{Diedge, Partition{Int}}
+
+Trace the random walk (specified by *walk_adjmtx* and *walktest*) steps in the original graph
+(given by *step_adjmtx* and *steptest*).
+
+See [`HierarchicalHotNet.traceflows!`](@ref) for the detailed description.
+"""
 traceflows(step_adjmtx::AbstractMatrix, steptest::EdgeTest,
            walk_adjmtx::AbstractMatrix, walktest::EdgeTest,
            pools::Union{ObjectPools, Nothing} = nothing; kwargs...) =

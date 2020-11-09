@@ -10,12 +10,12 @@ these edges (otherwise by definition there is a bigger SCC). In other words,
 for each *t* we have a *direct acyclic graph* of connections between SCCs.
 
 This property makes it very convenient to enumerate all paths from one set of nodes
-(*sources*) to the other (*sinks*). It is implemented by the *flowgraph()* method.
+(*sources*) to the other (*sinks*). It is implemented by the [`HierarchicalHotNet.flowgraph()`](@ref) method.
 One can use it to identify signaling subnetworks that connect one biological
 data (e.g. interactors of a particular protein) to another (e.g. downstream
 changes resulting from knock out or overexpressing this protein).
 
-The output of *flowgraph()* is the subnetwork that consists of selected SCCs
+The output of [`HierarchicalHotNet.flowgraph()`](@ref) is the subnetwork that consists of selected SCCs
 and the edges that connect these SCCs, plus the list of paths within this subnetwork
 from *source* to *sink* nodes. It could be shown that the path lengths tend
 to be smaller for the diffusion networks based on the real data than the ones

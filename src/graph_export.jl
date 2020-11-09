@@ -32,8 +32,8 @@ them as additional edges.
   * `diedges_stats::AbstarctDataFrame`: optional directed edges statistics
   * `flowpaths::Symbol`: how the flows should be traced
      * `skip` (default): no tracing
-     * `flowattr`: trace the flows (see [`traceflows`](@ref)) and add as `flowpaths` column to *diedges* data frame
-     * `steps`: trace the flows (see [`traceflows`](@ref)) and add as extra diedges of type `step` to *diedges* data frame
+     * `flowattr`: trace the flows (see [`HierarchicalHotNet.traceflows`](@ref)) and add as `flowpaths` column to *diedges* data frame
+     * `steps`: trace the flows (see [`HierarchicalHotNet.traceflows`](@ref)) and add as extra diedges of type `step` to *diedges* data frame
 
 ### Returns
 
@@ -42,6 +42,9 @@ Named tuple with fields
   * `vertices::DataFrame`: network vertices
   * `diedges::DataFrame`: directed edges
   * `edges::DataFrame`: undirected edges
+
+### See also
+[`HierarchicalHotNet.cut`](@ref)
 """
 function export_flowgraph(
     tree::SCCTree{T}, threshold::Number,
