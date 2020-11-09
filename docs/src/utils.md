@@ -1,8 +1,8 @@
 # [Partitions](@id partition)
 
-`Partition` is an efficient way to store multiple vectors of elements.
-The advantage over `Vector{Vector{T}}` is that internally it uses the single
-container to store the elements of all its parts. The disadvantage is that it
+`Partition` type provides an efficient container for storing multiple vectors of elements.
+The advantage over `Vector{Vector{T}}` is that internally it uses single `Vector{T}`
+to store the elements of all of its parts. The disadvantage is that it
 doesn't support adding or removing elements to/from arbitrary part,
 only the last part could be modified.
 `Partition` supports iterator interface for iterating over its parts as
@@ -10,8 +10,8 @@ well as parts indexing and `filter!` for elements filtering.
 
 ```@docs
 HierarchicalHotNet.AbstractPartition
-HierarchicalHotNet.PartitionPart
 HierarchicalHotNet.Partition
+HierarchicalHotNet.PartitionPart
 ```
 
 ```@docs
