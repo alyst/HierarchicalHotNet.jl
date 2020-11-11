@@ -23,20 +23,26 @@ based on the reshuffled node weights.
 
 ## [Network Metrics](@id network_metrics)
 
-To show that, at specific threshold ``t_*``, *HHotNet* results based
-on real data, ``H_{\mathrm{real}}(t_*)``, are significantly
-different than random ones, ``H_{\mathrm{perm}, i}(t_*)``, ``i=1,2,\ldots,N_{\mathrm{perm}}``,
-the approach of the original publication was to calculate some metric ``m(H)`` and show that
-the probability that ``m(H_{\mathrm{real}}(t_*))`` is a sample from ``M_{\mathrm{perm}}(t_*)`` is low:
+It's is important to have a way to check the relevance of *HierarchicalHotNet* predictions.
+For example, one can [randomize the input data](@ref permweights) and show that, at some edge weight
+threshold ``t_*``, *HHotNet* predictions based on the real data, ``H(\mathcal{D}_{\mathrm{real}}, t_*)``,
+demnostrate significantly more order than the ones based on randomized data,
+``H(\mathcal{D}_{\mathrm{perm}}^i, t_*)``, ``i=1,2,\ldots,N_{\mathrm{perm}}``.
+If the "order" could be expressed as some metric ``m(H)``, then we can easily define
+the ``p``-value for the hypothesis that ``H(\mathcal{D}_{\mathrm{real}}, t)`` is significantly
+more "ordered" than expected by chance:
 ```math
-\min \Big(P\big(m(H_{\mathrm{real}}(t_*)) \leq M_{\mathrm{perm}}(t_*) \big), P\big(m(H_{\mathrm{real}}(t_*)) \geq M_{\mathrm{perm}}(t_*) \big) \Big) \leq p_*,
+p_m(H(\mathcal{D}_{\mathrm{real}}, t)) = P\big(M_{\mathrm{perm}}(t) \geq m(H(\mathcal{D}_{\mathrm{real}}, t)) \big),
 ```
 where ``M_{\mathrm{perm}}(t)`` is a random variable derived from the empirical distribution
-of ``m(H_{\mathrm{perm}, i}(t))``, ``i = 1, 2, \ldots, N_{\mathrm{perm}}``, and ``p_*`` is the significance level.
+of ``m(H(\mathcal{D}_{\mathrm{perm}}^i, t))``, ``i = 1, 2, \ldots, N_{\mathrm{perm}}``.
+The definition above was given for the case of ``m(H)`` growing with the increase of ``H`` "order".
+If the metric ``m`` decreases as the "order" of ``H`` grows, ``P(M \geq m(H))`` should be changed
+to ``P(M \leq m(H))``.
 
 In [_M.A. Reyna et al_ (2018)](https://academic.oup.com/bioinformatics/article/34/17/i972/5093236),
 the ``m_{\max\mathrm{size}}(H)`` metric -- the size of the maximal strongly connected component -- was used,
-and it was shown that ``m_{\max\mathrm{size}}(H_{\mathrm{real}})`` is statistically significantly larger
+and it was shown that ``m_{\max\mathrm{size}}(H(\mathcal{D}_{\mathrm{real}}, t))`` is statistically significantly larger
 than at random for some ``t_*``. [HierarchicalHotNet.treecomp_stats](@ref) provides ``m_{\max\mathrm{size}}(t)``
 in `maxcomponent_size` column.
 It is also possible to use the total size of top *N* components (`topn_components_sizesum` column) or the number of
@@ -44,8 +50,9 @@ non-trivial (larger than single node) SCCs (`ncomponents_nontrivial` column) for
 
 ### [Flow Metrics](@id sourcesink_metrics)
 
-The analysis of source-to-sink flows requires a different metric, which takes into account the flows that exist
-at given threshold *t*. The flow metric that is showing good is *the average inverse of flow length*:
+Metrics like ``m_{\max\mathrm{size}}(H)`` could be used for the analysis of significantly perturbed subnetworks,
+but they don't allow estimating how strong is the relationship between sources and sinks.
+The source-to-sink flows analysis requires different metrics. The one that shows good results is *the average inverse of flow length*:
 ```math
 L_{\mathrm{avg}}^{-1}(H) = \frac{1}{N_{\mathrm{source}} \cdot N_{\mathrm{sink}}} \sum_{f \in \mathrm{flows}(H)} \frac{1}{N_{\mathrm{SCC}}(f)},
 ```
@@ -63,7 +70,7 @@ The alternative metrics for the flow analysis provided by [HierarchicalHotNet.tr
 w_{\mathrm{avg. flow}}(H) = \frac{1}{N_{\mathrm{src}} \cdot N_{\mathrm{sink}}} \sum_{f \in \mathrm{flows}(H)} \min \big( w(\mathrm{source}(f), \mathrm{sink}(f)), w_{\max} \big),
 ```
 where ``w(i, j)`` is the transition probability from ``i``-th to ``j``-th node in the random walk with restart.
-The distribution of ``w(i, j)`` is essentially non-normal, and to limit the strong influence of the few "outliers" on the
+The distribution of ``w(i, j)`` is essentially non-gaussian, and to limit the strong influence of a few "outliers" on the
 total ``w_{\mathrm{avg. flow}}(H)``, some ``w_{\max}`` constant is used.
 * the average flow transition probability per SCC (`flow_avghopweight` column):
 ```math
