@@ -184,11 +184,15 @@ function expand_componentsflowgraph!(
     adjmtx::AbstractMatrix,
     sources::AbstractVector{Int}, sinks::AbstractVector{Int},
     test::EdgeTest,
-    pools::Union{ObjectPools, Nothing} = nothing
+    pools::Union{ObjectPools, Nothing} = nothing;
+    mincompsize::Union{Integer, Nothing} = nothing
 )
     # expand component flows into source/sink node flows
     empty!(flows)
     @inbounds for ((i, j), info) in compflows
+        if !isnothing(mincompsize) # skip small components
+            ((partlength(comps, i) < mincompsize) || (partlength(comps, j) < mincompsize)) && continue
+        end
         for src in compsources[i], snk in compsinks[j]
             push!(flows, (src => snk, i => j, info))
         end
@@ -200,6 +204,9 @@ function expand_componentsflowgraph!(
         boolpool = arraypool(pools, Bool)
         used_comps = fill!(borrow!(boolpool, length(comps)), false)
         @inbounds for (i, j) in compgraph
+            if !isnothing(mincompsize) # skip small components
+                ((partlength(comps, i) < mincompsize) || (partlength(comps, j) < mincompsize)) && continue
+            end
             used_comps[i] = true
             used_comps[j] = true
             (i == j) && continue # skip components self-loops
@@ -239,7 +246,8 @@ function flowgraph!(
     adjmtx::AbstractMatrix,
     sources::AbstractVector{Int}, sinks::AbstractVector{Int},
     test::EdgeTest,
-    pools::Union{ObjectPools, Nothing} = nothing
+    pools::Union{ObjectPools, Nothing} = nothing;
+    mincompsize::Union{Integer, Nothing} = nothing
 )
     flowpool = arraypool(pools, Flow)
     compflows = borrow!(flowpool)
@@ -254,7 +262,8 @@ function flowgraph!(
                          adjmtx, sources, sinks, test, pools)
     expand_componentsflowgraph!(subgraph, flows, compgraph, compflows,
                                 compsources, compsinks, comps,
-                                adjmtx, sources, sinks, test, pools)
+                                adjmtx, sources, sinks, test, pools;
+                                mincompsize=mincompsize)
 
     release!(ptnpool, compsinks)
     release!(ptnpool, compsources)
@@ -272,17 +281,52 @@ flowgraph!(
     tree::SCCTree, adjmtx::AbstractMatrix,
     sources::AbstractVector{Int}, sinks::AbstractVector{Int},
     test::EdgeTest,
-    pools::Union{ObjectPools, Nothing} = nothing
+    pools::Union{ObjectPools, Nothing} = nothing;
+    kwargs...
 ) = flowgraph!(subgraph, flows, cut!(empty!(comps), tree, test.threshold),
-               adjmtx, sources, sinks, test, pools)
+               adjmtx, sources, sinks, test, pools; kwargs...)
 
 flowgraph(tree::SCCTree, adjmtx::AbstractMatrix,
           sources::AbstractVector{Int}, sinks::AbstractVector{Int},
           test::EdgeTest,
-          pools::Union{ObjectPools, Nothing} = nothing
+          pools::Union{ObjectPools, Nothing} = nothing;
+          kwargs...
 ) = flowgraph!(Vector{CompDiedge}(), Vector{CompFlow}(), IndicesPartition(),
-               tree, adjmtx, sources, sinks, test, pools)
+               tree, adjmtx, sources, sinks, test, pools; kwargs...)
 
+"""
+    nflows(comps::IndicesPartition, adjmtx::AbstractMatrix,
+           sources::AbstractVector{Int}, sinks::AbstractVector{Int},
+           test::EdgeTest;
+           maxweight::Union{Number, Nothing} = nothing,
+           used_sources::Union{AbstractVector{Int}, Nothing}=nothing,
+           used_sinks::Union{AbstractVector{Int}, Nothing}=nothing) -> NamedTupe
+
+Calculates statistics from the flows from *sources* to *sinks* vertices
+in the weighted directed graph defined by *adjmtx* and *test* and the *comps* vertex components.
+
+Returns the *NamedTuple* with the following fields
+ * `nflows`: the number of *source* → *sink* flows
+ * `ncompoflows`: the number of unique *component(source)* → *component(sink)* pairs for each *source* → *sink* flow
+ * `flowlen_sum`: total length of all flows (flow length = the number of SCCs it crosses)
+ * `compflowlen_sum`: total length of flows (every unique pairs of source/sink components is counted once)
+ * `flowinvlen_sum`: the sum of ``1/\\mathrm{flowlength}``
+ * `compflowinvlen_sum`: the sum of ``1/\\mathrm{flowlength}`` (each unique source/sink component pair is counted once)
+ * `compflowlen_max`:
+ * `floweight_sum`:
+ * `floweight_sum`:
+ * `compfloweight_sum`:
+ * `flowavghopweight_sum`:
+ * `ncompsources`: the number of distinct SCCs that have source nodes
+ * `ncompsinks`: the number of distinct SCCs that have sink nodes
+
+# Keyword arguments
+* `maxweight`: if specified, limits the flow weight by `maxweight`
+* `used_sources::AbstractVector{Int}`: if specified, acts as an output parameter that contains the
+   sorted list of sources that have outgoing flows
+* `used_sinks::AbstractVector{Int}`: if specified, acts as an output parameter that contains the
+   sorted list of sinks that have incoming flows
+"""
 function nflows(
     comps::IndicesPartition,
     adjmtx::AbstractMatrix,
@@ -394,11 +438,31 @@ function nflows(
 end
 
 """
-Trace the random walk (given by *walk_adjmtx*) steps in the original graph
-(given by *step_adjmtx*).
+    traceflows!(flow2paths::AbstractDict{Diedge, Partition{Int}},
+                step_adjmtx::AbstractMatrix,
+                steptest::EdgeTest,
+                walk_adjmtx::AbstractMatrix,
+                walktest::EdgeTest;
+                sources::Union{AbstractVector, AbstractSet, Nothing} = nothing,
+                sinks::Union{AbstractVector, AbstractSet, Nothing} = nothing,
+                maxsteps::Integer=2) -> Dict{Diedge, Partition{Int}}
+
+Trace the random walk (specified by *walk_adjmtx* and *walktest*) steps in the original graph
+(given by *step_adjmtx* and *steptest*).
+
+### Keyword arguments
+* `sources` (optional): the indices of vertices to use as path starts.
+  If not specified, all vertices are used as path starts.
+* `sinks` (optional): the indices of vertices to use as path ends.
+  If not specified, all vertices are used as path ends.
+* `maxsteps=2`: maximal number of steps in a traced path, longer paths are discarded.
+
+Returns the mapping from the flow diedges to the [`HierarchicalHotNet.Partition`](@ref)
+object. Each part corresponds to the path, from diedge start to diedge end, in the original network,
+and the part elements are the indices of the intermedidate vertices along the path (start and end not included).
 """
-function tracesteps!(
-    stepgraph::AbstractVector{Diedge},
+function traceflows!(
+    flow2paths::AbstractDict{Diedge, Partition{Int}},
     step_adjmtx::AbstractMatrix,
     steptest::EdgeTest,
     walk_adjmtx::AbstractMatrix,
@@ -414,9 +478,6 @@ function tracesteps!(
     size(walk_adjmtx) == size(step_adjmtx) ||
         throw(DimensionMismatch("Steps and walk adjacency matrices must have equal sizes ($(size(step_adjmtx)) and $(size(walk_adjmtx)) given)"))
     (maxsteps > 0) || throw(ArgumentError("maxsteps must be positive ($(maxsteps) given)"))
-
-    edgesetpool = objpool(pools, Set{Pair{Int, Int}})
-    tracededges = empty!(borrow!(edgesetpool))
 
     vtxsetpool = objpool(pools, Set{Int})
     visited = empty!(borrow!(vtxsetpool)) # local visited vertex
@@ -450,14 +511,15 @@ function tracesteps!(
             end
             if u > 0 # follow v->u Diedge
                 # v -...-> u path is present in the walk graph, and u is a sink,
-                # add its steps to the result
+                # add its intermediate vertices to the result
                 if isvalidedge(walkedges[u], walktest) && (isnothing(sinks) || in(u, sinks))
-                    for i in 2:length(dfs_stack)
-                        push!(tracededges, dfs_stack[i-1][1] => dfs_stack[i][1])
+                    flowpaths = get!(() -> Partition{Int}(), flow2paths, v => u)
+                    @inbounds for i in 2:length(dfs_stack)
+                        pushelem!(flowpaths, dfs_stack[i][1])
                     end
-                    push!(tracededges, dfs_stack[end][1] => u)
+                    closepart!(flowpaths) # finish given path
                 end
-                # if v -..-> u path has not reached maximum length, continue DFS
+                # if v ->..-> u path has not reached maximum length, continue DFS
                 if length(dfs_stack) < maxsteps
                     push!(dfs_stack, (u, 0))
                     push!(visited, u)
@@ -468,17 +530,23 @@ function tracesteps!(
         end
     end
     # fill the stepgraph with traced steps
-    empty!(stepgraph)
-    for step in tracededges
-        push!(stepgraph, step)
-    end
     release!(dfspool, dfs_stack)
-    release!(edgesetpool, tracededges)
     release!(vtxsetpool, visited)
-    return stepgraph
+    return flow2paths
 end
 
-tracesteps(step_adjmtx::AbstractMatrix, steptest::EdgeTest,
+"""
+    traceflows(step_adjmtx::AbstractMatrix, steptest::EdgeTest,
+               walk_adjmtx::AbstractMatrix, walktest::EdgeTest;
+               kwargs...) -> Dict{Diedge, Partition{Int}}
+
+Trace the random walk (specified by *walk_adjmtx* and *walktest*) steps in the original graph
+(given by *step_adjmtx* and *steptest*).
+
+See [`HierarchicalHotNet.traceflows!`](@ref) for the detailed description.
+"""
+traceflows(step_adjmtx::AbstractMatrix, steptest::EdgeTest,
            walk_adjmtx::AbstractMatrix, walktest::EdgeTest,
            pools::Union{ObjectPools, Nothing} = nothing; kwargs...) =
-    tracesteps!(Vector{Diedge}(), step_adjmtx, steptest, walk_adjmtx, walktest, pools; kwargs...)
+    traceflows!(Dict{Diedge, Partition{Int}}(),
+                step_adjmtx, steptest, walk_adjmtx, walktest, pools; kwargs...)

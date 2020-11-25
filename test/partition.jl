@@ -100,12 +100,12 @@
     @testset "initializing IndicesPartition" begin
         ptn = HHN.IndicesPartition(5)
         @test ptn == [[1], [2], [3], [4], [5]]
-        HHN.reset!(ptn, ngroups=1)
+        HHN.reset!(ptn, nparts=1)
         @test ptn == [1:5]
-        @test_throws ArgumentError HHN.reset!(ptn, ngroups=3)
+        @test_throws ArgumentError HHN.reset!(ptn, nparts=3)
 
-        @test HHN.IndicesPartition(3, ngroups=1) == [1:3]
-        @test HHN.IndicesPartition(3, ngroups=3) == [[1], [2], [3]]
+        @test HHN.IndicesPartition(3, nparts=1) == [1:3]
+        @test HHN.IndicesPartition(3, nparts=3) == [[1], [2], [3]]
     end
 
     @testset "repeat!()" begin

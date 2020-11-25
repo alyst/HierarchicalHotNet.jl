@@ -1,7 +1,29 @@
 """
-Distribute the vertices of the weighted graph `g` into `nbins` bins,
-so that the vertices that have similar sum of outgoing/incoming edges are
-put into the same bin.
+    vertexbins(g::AbstractSimpleWeightedGraph,
+               vertices::AbstractArray{Int}=1:nv(g);
+               nbins::Integer=10, by::Symbol=:out, method=:tree) ->
+        IndicesPartition
+
+Partition the `vertices` of the weighted graph `g` into `nbins` bins,
+so that the vertices of the same bin have similar sum of edge weights.
+
+# Keyword arguments
+* `nbins::Integer`: the number of vertex bins. Use *nbins* &ge; 1 for
+   bigger (*nv* &ge; 1) networks
+* `by::Symbol`: what edges to consider for grouping vertices.
+  The supported options are:
+  - `:out` (*default*, as in the original paper) --
+    use only the outgoing edges
+  - `:in` -- use only the incoming edges
+  - `:outXin` (*recommended*) -- use all edges, so that the vertices of
+    the same bin have similar sums of both incoming and outgoing edges
+* `method::Symbol`: the method for binning vertices
+  - `:sort` (as in the original paper) -- order the vertices by the
+    sum of weights, then split the sorted array into equal bins.
+    This method doesn't handle the `by=:outXin` well.
+  - `:tree` (*default*) -- build the *hierarchical tree* of vertices
+    based on their sum of weights, then cut the tree to get the
+    requested number of bins.
 """
 function vertexbins(g::AbstractSimpleWeightedGraph,
                     vertices::AbstractArray{Int}=1:nv(g);
@@ -78,7 +100,10 @@ function vertexbins_tree(g::AbstractSimpleWeightedGraph,
 end
 
 """
-Generates a random permutation of elements within each specified group.
+    randpermgroups!(v::AbstractVector{Int}, groups::AbstractPartition) -> v
+
+Randomly reshuffle the elements of `groups` within each group and put
+the result into `v`, group by group.
 """
 function randpermgroups!(v::AbstractVector{Int}, groups::AbstractPartition)
     (length(v) >= nelems(groups)) ||
@@ -93,5 +118,10 @@ function randpermgroups!(v::AbstractVector{Int}, groups::AbstractPartition)
     return v
 end
 
+"""
+    randpermgroups(groups::AbstractPartition) -> Vector{Int}
+
+Randomly reshuffle the elements of `groups` within each group.
+"""
 randpermgroups(groups::AbstractPartition) =
     randpermgroups!(Vector{Int}(undef, nelems(groups)), groups)

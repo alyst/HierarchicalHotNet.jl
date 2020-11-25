@@ -1,4 +1,4 @@
-# [Strongly Connected Components tree](@id scctree)
+# [Strongly Connected Components Tree](@id scctree)
 
 ```@docs
 HierarchicalHotNet.SCCTree

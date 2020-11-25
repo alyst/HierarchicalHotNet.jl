@@ -1,3 +1,51 @@
+"""
+    export_flowgraph(tree::SCCTree{T}, threshold::Number,
+                     walkmatrix::AbstractMatrix,
+                     sources::AbstractVector{<:Integer}, sinks::AbstractVector{<:Integer};
+                     orig_diedges::Union{AbstractDataFrame, Nothing} = nothing,
+                     vertices_stats::Union{AbstractDataFrame, Nothing} = nothing,
+                     diedges_stats::Union{AbstractDataFrame, Nothing} = nothing,
+                     flowpaths::Symbol = :skip,
+                     stepmatrix::Union{AbstractMatrix, Nothing} = nothing,
+                     step_threshold::Number = 0.75 * threshold, maxsteps::Integer = 2,
+                     step_sinks::Union{AbstractVector, AbstractSet, Nothing} = nothing,
+                     step_sources::Union{AbstractVector, AbstractSet, Nothing} = nothing,
+                     flow_edges::Bool=false,
+                     pvalue_mw_max::Number=0.05,
+                     pvalue_fisher_max::Number=0.05,
+                     verbose::Bool=false,
+                     pools::Union{ObjectPools, Nothing}=nothing,
+                     mincompsize::Union{Integer, Nothing}=nothing,
+                     exported_sinks::AbstractVector{<:Integer}=sinks
+    ) -> NamedTuple
+
+Cuts the `tree` at `threshold` and exports the resulting SCC network
+as the collection of dataframes.
+
+If specified, calculates the flows from `sources` to `sinks` and returns
+them as additional edges.
+
+### Keyword arguments
+  * `orig_diedges::AbstractDataFrame`: optional collection of the original edges.
+    The metadata from this frame is added to the overlapping diedges of the SCC network.
+  * `vertices_stats::AbstractDataFrame`: optional vertices statistics
+  * `diedges_stats::AbstarctDataFrame`: optional directed edges statistics
+  * `flowpaths::Symbol`: how the flows should be traced
+     * `skip` (default): no tracing
+     * `flowattr`: trace the flows (see [`HierarchicalHotNet.traceflows`](@ref)) and add as `flowpaths` column to *diedges* data frame
+     * `steps`: trace the flows (see [`HierarchicalHotNet.traceflows`](@ref)) and add as extra diedges of type `step` to *diedges* data frame
+
+### Returns
+
+Named tuple with fields
+  * `components::DataFrame`: statistics for *Strongly Connected Components*
+  * `vertices::DataFrame`: network vertices
+  * `diedges::DataFrame`: directed edges
+  * `edges::DataFrame`: undirected edges
+
+### See also
+[`HierarchicalHotNet.cut`](@ref)
+"""
 function export_flowgraph(
     tree::SCCTree{T}, threshold::Number,
     walkmatrix::AbstractMatrix,
@@ -5,6 +53,7 @@ function export_flowgraph(
     orig_diedges::Union{AbstractDataFrame, Nothing} = nothing,
     vertices_stats::Union{AbstractDataFrame, Nothing} = nothing,
     diedges_stats::Union{AbstractDataFrame, Nothing} = nothing,
+    flowpaths::Symbol = :skip,
     stepmatrix::Union{AbstractMatrix, Nothing} = nothing,
     step_threshold::Number = 0.75 * threshold, maxsteps::Integer = 2,
     step_sinks::Union{AbstractVector, AbstractSet, Nothing} = nothing,
@@ -13,14 +62,17 @@ function export_flowgraph(
     pvalue_mw_max::Number=0.05,
     pvalue_fisher_max::Number=0.05,
     verbose::Bool=false,
-    pools::Union{ObjectPools, Nothing}=nothing
+    pools::Union{ObjectPools, Nothing}=nothing,
+    mincompsize::Union{Integer, Nothing}=nothing,
+    exported_sinks::AbstractVector{<:Integer}=sinks
 ) where T
     nvertices(tree) == size(walkmatrix, 1) == size(walkmatrix, 2) ||
         throw(DimensionMismatch("Number of tree vertices ($(nvertices(tree))) doesn't match the walk matrix dimensions ($(size(walkmatrix)))"))
     W = eltype(walkmatrix)
+    verbose && isempty(sinks) && @warn "No sinks provided, flowgraph will be empty"
     subgraph, flows, conncomps = flowgraph(tree, walkmatrix, sources, sinks,
                                            EdgeTest{T}(threshold=threshold),
-                                           pools)
+                                           pools, mincompsize=mincompsize)
     components_df = conncomponents_stats(conncomps,
                                          average_weights=false,
                                          mannwhitney_tests=false)
@@ -47,29 +99,51 @@ function export_flowgraph(
     pos2vertex = copy(used_comps.elems)
     vertex2pos = fill(0, nvertices(tree))
     vertex2pos[pos2vertex] = eachindex(pos2vertex)
-    if !isnothing(stepmatrix)
+    extra_vtxs = Vector{Int}()
+    if flowpaths != :skip
+        verbose && @info("Tracing flows paths (step_threshold=$(step_threshold), maxsteps=$maxsteps)...")
+        isnothing(stepmatrix) && throw(ArgumentError("stepmatrix is required for tracing flows, but it was not provided"))
+
+        (flowpaths ∈ [:stepedges, :flowattr]) ||
+            throw(ArgumentError("Unsupported flowpaths=:$(flowpaths) mode. Only :skip, :stepedges and :flowattr are supported"))
+
         # trace the steps between the vertices of the flowgraph
         flow_walkmatrix = fill(zero(W), size(walkmatrix))
         @inbounds flow_walkmatrix[pos2vertex, pos2vertex] .= view(walkmatrix, pos2vertex, pos2vertex)
-        stepedges = tracesteps(Matrix(stepmatrix), EdgeTest{W}(threshold=step_threshold),
-                               flow_walkmatrix, EdgeTest{W}(threshold=threshold),
-                               pools, maxsteps=maxsteps, sources=step_sources, sinks=step_sinks)
-        verbose && @info("$(length(stepedges)) step edge(s) traced (step_threshold=$(step_threshold), maxsteps=$maxsteps)")
-        # add vertices from steps that are not yet in the flowgraph
-        extra_vtxs_set = Set{Int}()
-        @inbounds for (src, trg) in stepedges
-            (vertex2pos[src] == 0) && push!(extra_vtxs_set, src)
-            (vertex2pos[trg] == 0) && push!(extra_vtxs_set, trg)
+        flow2paths = traceflows(Matrix(stepmatrix), EdgeTest{W}(threshold=step_threshold),
+                                flow_walkmatrix, EdgeTest{W}(threshold=threshold),
+                                pools, maxsteps=maxsteps, sources=step_sources, sinks=step_sinks)
+        verbose && @info("$(isempty(flow2paths) ? 0 : sum(ptn -> nelems(ptn) + nparts(ptn), values(flow2paths))) step edge(s) of $(length(flow2paths)) flow(s) traced")
+        if flowpaths ==:stepedges
+            # collect extra vertices and trace edges that are not yet in the flowgraph
+            flowpath_steps = Set{Diedge}()
+            extra_vtxs_set = Set{Int}()
+            for ((src, trg), paths) in pairs(flow2paths)
+                prev = src
+                @inbounds for v in elems(paths)
+                    push!(flowpath_steps, prev => v)
+                    (vertex2pos[v] == 0) && push!(extra_vtxs_set, v)
+                    prev = v
+                end
+                push!(flowpath_steps, prev => trg)
+            end
+            extra_vtxs = append!(extra_vtxs, extra_vtxs_set)
+            verbose && @info("$(length(extra_vtxs)) extra vertice(s) for $(length(flowpath_steps)) step edges")
+            flowpath_vertices = nothing
+            flow2paths = nothing # don't use it later to create .flowpaths column
+            # update the mapping
+            vertex2pos[extra_vtxs] = length(pos2vertex) .+ eachindex(extra_vtxs)
+            append!(pos2vertex, extra_vtxs)
+        elseif flowpaths == :flowattr
+            flowpath_steps = nothing
+        else
+            error("Unsupported flowpaths=:$(flowpaths) mode. Developers note: should have been checked earlier")
         end
-        extra_vtxs = sort!(collect(extra_vtxs_set))
-        verbose && @info("$(length(extra_vtxs)) extra vertice(s) for step edges")
-        # update the mapping
-        vertex2pos[extra_vtxs] = length(pos2vertex) .+ eachindex(extra_vtxs)
-        append!(pos2vertex, extra_vtxs)
     else
-        stepedges = nothing
-        extra_vtxs = Vector{Int}()
+        flowpath_steps = nothing
+        flow2paths = nothing
     end
+    sort!(extra_vtxs)
 
     # create vertices dataframe
     vertices_df = DataFrame(vertex = pos2vertex)
@@ -84,7 +158,7 @@ function export_flowgraph(
         (pos > 0) && (vertices_df[pos, :is_source] = true)
     end
     vertices_df[!, :is_sink] .= false
-    @inbounds for v in sinks
+    @inbounds for v in exported_sinks
         pos = vertex2pos[v]
         (pos > 0) && (vertices_df[pos, :is_sink] = true)
     end
@@ -113,6 +187,9 @@ function export_flowgraph(
                            walkweight = wj2i,
                            walkweight_rev = walkmatrix[src, trg]))
     end
+    if !isnothing(flow2paths)
+        diedges_df.flowpaths = [get(flow2paths, r.source => r.target, missing) for r in eachrow(diedges_df)]
+    end
     if !isnothing(diedges_stats)
         diedges_df = leftjoin(diedges_df, diedges_stats, on=[:source, :target])
     end
@@ -121,6 +198,7 @@ function export_flowgraph(
     flows_df.flowlen = Vector{Int}()
     flows_df.floweight = Vector{W}()
     for ((src, trg), (srccomp, trgcomp), info) in flows
+        (vertex2pos[trg] > 0 && vertices_df.is_sink[vertex2pos[trg]]) || continue
         (comp2new[srccomp] != 0) && (comp2new[trgcomp] != 0) || continue
         push!(flows_df, (source = src,
                          target = trg,
@@ -131,27 +209,36 @@ function export_flowgraph(
                          floweight = info.weight))
     end
 
-    source_stats_df = combine(groupby(flows_df, :source)) do outedges_df
-        sinks = sort!(unique(collect(zip(outedges_df.flowlen,
-                                         outedges_df.target))))
-        sourcesinks = sort!(unique!(outedges_df[outedges_df.flow .== "loop", :target]))
-        DataFrame(flows_to = isempty(sinks) ? missing :
-                              join(string.(last.(sinks), '(', first.(sinks),')'), ' '),
-                  nflows_to = length(sinks),
-                  loops_through = isempty(sourcesinks) ? missing : join(sourcesinks, ' '),
-                  nloops_through = length(sourcesinks))
-    end
-    target_stats_df = combine(groupby(flows_df, :target)) do inedges_df
-        sources = sort!(unique(collect(zip(inedges_df.flowlen,
-                                           inedges_df.source))))
-        DataFrame(flows_from = isempty(sources) ? missing :
-                               join(string.(last.(sources), '(', first.(sources),')'), ' '),
-                  nflows_from = length(sources))
+    if nrow(flows_df) > 0
+        source_stats_df = combine(groupby(flows_df, :source)) do outedges_df
+            sinks = sort!(unique(collect(zip(outedges_df.target, outedges_df.flowlen))),
+                        by=x -> (x[2], x[1]))
+            sourcesinks = sort!(unique!(outedges_df[outedges_df.flow .== "loop", :target]))
+            DataFrame(flows_to = isempty(sinks) ? missing : [sinks],
+                      nflows_to = length(sinks),
+                      loops_through = isempty(sourcesinks) ? missing : [sourcesinks],
+                      nloops_through = length(sourcesinks))
+        end
+        target_stats_df = combine(groupby(flows_df, :target)) do inedges_df
+            sources = sort!(unique(collect(zip(inedges_df.source, inedges_df.flowlen))),
+                            by=x -> (x[2], x[1]))
+            DataFrame(flows_from = isempty(sources) ? missing : [sources],
+                      nflows_from = length(sources))
+        end
+    else
+        source_stats_df = DataFrame(source = Int[],
+                                    flows_to = Vector{Int}[],
+                                    nflows_to = Int[],
+                                    loops_through = Vector{Int}[],
+                                    nloops_through = Int[],)
+        target_stats_df = DataFrame(target = Int[],
+                                    flows_from = Vector{Int}[],
+                                    nflows_from = Int[],)
     end
 
-    if !isnothing(stepedges)
-        steps_df = DataFrame(source = first.(stepedges),
-                             target = last.(stepedges))
+    if !isnothing(flowpath_steps)
+        steps_df = DataFrame(source = first.(flowpath_steps),
+                             target = last.(flowpath_steps))
         extra_diedges_df = antijoin(steps_df, diedges_df, on=[:source, :target])
         extra_diedges_df[!, :flow] .= "trace"
         append!(diedges_df, extra_diedges_df, cols=:union)
@@ -193,17 +280,24 @@ function export_flowgraph(
         if hasproperty(edge_df, :is_original)
             orig1st = findfirst(r -> r.is_original && !r.is_reverse, eachrow(edge_df))
             orig1st_rev = findfirst(r -> r.is_original && r.is_reverse, eachrow(edge_df))
-            res.has_original = !isnothing(orig1st)
-            res.has_original_rev = !isnothing(orig1st_rev)
+            res[!, :has_original] .= !isnothing(orig1st)
+            res[!, :has_original_rev] .= !isnothing(orig1st_rev)
         else
             orig1st = orig1st_rev = nothing
         end
         if hasproperty(edge_df, :diedge_type)
-            res.target_type = isnothing(orig1st) ? missing : edge_df.diedge_type[orig1st]
-            res.source_type = isnothing(orig1st_rev) ? missing : edge_df.diedge_type[orig1st_rev]
+            res[!, :target_type] .= isnothing(orig1st) ? missing : edge_df.diedge_type[orig1st]
+            res[!, :source_type] .= isnothing(orig1st_rev) ? missing : edge_df.diedge_type[orig1st_rev]
+        end
+        if hasproperty(edge_df, :flowpaths)
+            paths1st = findfirst(r -> !ismissing(r.flowpaths) && !r.is_reverse, eachrow(edge_df))
+            paths1st_rev = findfirst(r -> !ismissing(r.flowpaths) && r.is_reverse, eachrow(edge_df))
+
+            res[!, :flowpaths] .= isnothing(paths1st) ? missing : Ref(edge_df.flowpaths[paths1st])
+            res[!, :flowpaths_rev] .= isnothing(paths1st_rev) ? missing : Ref(edge_df.flowpaths[paths1st_rev])
         end
         if hasproperty(edge_df, :interaction_type)
-            res.interaction_type = isnothing(orig1st) ? missing : edge_df.interaction_type[orig1st]
+            res[!, :interaction_type] .= isnothing(orig1st) ? missing : edge_df.interaction_type[orig1st]
         end
         if !flow_edges && !any(res.has_walk)
             return filter!(r -> false, res) # pure flows are not exported
@@ -213,7 +307,7 @@ function export_flowgraph(
 
     if nrow(outedges_df) + nrow(inedges_df) > 0
         edges_df = combine(combine_diedges, groupby(vcat(outedges_df, inedges_df),
-                      [:source, :target]))
+                        [:source, :target]))
     else
         # workaround: add missing columns to the empty frame
         edges_df = combine_diedges(outedges_df)
