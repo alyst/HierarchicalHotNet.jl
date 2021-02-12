@@ -3,9 +3,9 @@
 Julia implementation of *Hierarchical HotNet* algorithm for finding hotspots in
 the altered networks.
 
-| Docs | Build | Test |
-|:-----|:------|:-----|
-| [![](https://img.shields.io/badge/docs-latest-blue.svg)](https://alyst.github.io/HierarchicalHotNet.jl/dev) | [![Build Status](https://travis-ci.org/alyst/HierarchicalHotNet.jl.svg)](https://travis-ci.org/alyst/HierarchicalHotNet.jl) | [![codecov](http://codecov.io/github/alyst/HierarchicalHotNet.jl/branch/master/graph/badge.svg)](http://codecov.io/github/alyst/HierarchicalHotNet.jl) |
+| Docs | Build | Test | DOI |
+|:-----|:------|:-----|:----|
+| [![](https://img.shields.io/badge/docs-latest-blue.svg)](https://alyst.github.io/HierarchicalHotNet.jl/dev) | [![Build Status](https://travis-ci.org/alyst/HierarchicalHotNet.jl.svg)](https://travis-ci.org/alyst/HierarchicalHotNet.jl) | [![codecov](http://codecov.io/github/alyst/HierarchicalHotNet.jl/branch/master/graph/badge.svg)](http://codecov.io/github/alyst/HierarchicalHotNet.jl) | [![DOI](https://zenodo.org/badge/244656363.svg)](https://zenodo.org/badge/latestdoi/244656363) |
 
 The original *Python* implementation by [RaphaelLab](http://compbio.cs.brown.edu/) is available at [hierarchical-hotnet](https://github.com/raphael-group/hierarchical-hotnet) GitHub repository.
 
