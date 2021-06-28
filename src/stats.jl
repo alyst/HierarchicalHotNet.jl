@@ -472,7 +472,7 @@ function treecut_compstats(tree::SCCTree,
     return res
 end
 
-const treecut_metrics = [
+const TreecutMetrics = [
     :ncomponents, :ncomponents_nontrivial,
     :ncomponents_signif_mw, :ncomponents_signif_fisher,
     :components_signif_sizesum_mw, :components_signif_sizesum_fisher,
@@ -511,7 +511,7 @@ function bin_treecut_stats(
     by_cols::Union{AbstractVector{Symbol}, Symbol, Nothing} = nothing,
     threshold_range::Union{NTuple{2, Float64}, Nothing} = nothing,
     threshold_nbins::Integer = 100,
-    stat_cols::AbstractVector{Symbol} = intersect(treecut_metrics, propertynames(cutstats_df)),
+    stat_cols::AbstractVector{Symbol} = intersect(TreecutMetrics, propertynames(cutstats_df)),
 )
     used_thresholds = threshold_range === nothing ? cutstats_df.threshold :
         filter(t -> threshold_range[1] <= t <= threshold_range[2],
@@ -566,7 +566,7 @@ function aggregate_treecut_binstats(
     binstats_df::AbstractDataFrame;
     by_cols::Union{AbstractVector{Symbol}, Symbol, Nothing} = nothing,
     quantiles::AbstractVector{<:Number} = [0.025, 0.25, 0.5, 0.75, 0.975],
-    stat_cols::AbstractVector{Symbol} = intersect(treecut_metrics, propertynames(binstats_df))
+    stat_cols::AbstractVector{Symbol} = intersect(TreecutMetrics, propertynames(binstats_df))
 )
     used_quantiles = sort!(copy(quantiles))
     med_pos = searchsortedfirst(used_quantiles, 0.5)
@@ -609,11 +609,11 @@ function extreme_treecut_stats(
     stats_df::AbstractDataFrame,
     perm_aggstats_df::AbstractDataFrame;
     extra_join_cols::Union{Nothing, AbstractVector{Symbol}} = nothing,
-    metric_cols::AbstractVector{Symbol} = intersect(treecut_metrics, propertynames(stats_df)),
+    metric_cols::AbstractVector{Symbol} = intersect(TreecutMetrics, propertynames(stats_df)),
     stat_maxquantile::Union{Nothing, Number} = 0.25,
     threshold_range::Union{Tuple{<:Number, <:Number}, Nothing}=nothing
 )
-    perm_aggstats_cols = intersect(treecut_metrics, propertynames(perm_aggstats_df))
+    perm_aggstats_cols = intersect(TreecutMetrics, propertynames(perm_aggstats_df))
     join_cols = [:threshold_bin]
     isnothing(extra_join_cols) || unique!(append!(join_cols, extra_join_cols))
     joinstats_df = leftjoin(select(stats_df, [join_cols; metric_cols; [:threshold]]),
