@@ -618,6 +618,7 @@ are maximal/minimal (depending on the metric).
      to consider for threshold calculation (see [`TreecutMetrics`](@ref))
   * `start_maxquantile`: if specified, calculates (in addition to minimal and maximal metric)
      the metric corresponding to the given quantile as well as ``1 - quantile``
+  * `threshold_range`: if given, contrains metric statistic calculation to given min/max thresholds
 """
 function extreme_treecut_stats(
     stats_df::AbstractDataFrame,
@@ -625,13 +626,16 @@ function extreme_treecut_stats(
     extra_join_cols::Union{Nothing, AbstractVector{Symbol}} = nothing,
     metric_cols::AbstractVector{Symbol} = intersect(TreecutMetrics, propertynames(stats_df)),
     stat_maxquantile::Union{Nothing, Number} = 0.25,
-    threshold_range::Union{Tuple{<:Number, <:Number}, Nothing}=nothing
+    threshold_range::Union{Tuple{<:Number, <:Number}, Nothing} = nothing
 )
     join_cols = [:threshold_bin]
     isnothing(extra_join_cols) || unique!(append!(join_cols, extra_join_cols))
     joinstats_df = leftjoin(select(stats_df, [join_cols; metric_cols; [:threshold]]),
                             select(perm_aggstats_df, [join_cols; :quantile; metric_cols]),
                             on=join_cols, makeunique=true)
+    if !isnothing(threshold_range)
+        filter!(r -> threshold_range[1] <= r.threshold <= threshold_range[2], joinstats_df)
+    end
     by_cols = [:quantile]
     isnothing(extra_join_cols) || unique!(append!(by_cols, extra_join_cols))
     combine(groupby(joinstats_df, by_cols)) do df
