@@ -296,8 +296,13 @@ function export_flowgraph(
             res[!, :flowpaths] .= isnothing(paths1st) ? missing : Ref(edge_df.flowpaths[paths1st])
             res[!, :flowpaths_rev] .= isnothing(paths1st_rev) ? missing : Ref(edge_df.flowpaths[paths1st_rev])
         end
-        if hasproperty(edge_df, :interaction_type)
-            res[!, :interaction_type] .= isnothing(orig1st) ? missing : edge_df.interaction_type[orig1st]
+        # include data of the original diedges
+        if orig_diedges !== nothing
+            for col in names(orig_diedges)
+                (col == "source" || col == "target" || col == "diedge_type") && continue
+                res[!, col] .= isnothing(orig1st) ? missing : edge_df[orig1st, col]
+                res[!, col * "_rev"] .= isnothing(orig1st_rev) ? missing : edge_df[orig1st_rev, col]
+            end
         end
         if !flow_edges && !any(res.has_walk)
             return filter!(r -> false, res) # pure flows are not exported
