@@ -619,12 +619,15 @@ are maximal/minimal (depending on the metric).
   * `start_maxquantile`: if specified, calculates (in addition to minimal and maximal metric)
      the metric corresponding to the given quantile as well as ``1 - quantile``
   * `threshold_range`: if given, contrains metric statistic calculation to given min/max thresholds
+  * `threshold_weight`: optional function that takes stats_df row and returns
+    the prior weight of the corresponding cut threshold
 """
 function extreme_treecut_stats(
     stats_df::AbstractDataFrame,
     perm_aggstats_df::AbstractDataFrame;
     extra_join_cols::Union{Nothing, AbstractVector{Symbol}} = nothing,
     metric_cols::AbstractVector{Symbol} = intersect(TreecutMetrics, propertynames(stats_df)),
+    threshold_weight = nothing,
     stat_maxquantile::Union{Nothing, Number} = 0.25,
     threshold_range::Union{Tuple{<:Number, <:Number}, Nothing} = nothing
 )
@@ -639,11 +642,15 @@ function extreme_treecut_stats(
     by_cols = [:quantile]
     isnothing(extra_join_cols) || unique!(append!(by_cols, extra_join_cols))
     combine(groupby(joinstats_df, by_cols)) do df
+        thres_weights = threshold_weight !== nothing ? threshold_weight.(eachrow(df)) : nothing
         reduce(vcat, [begin
             perm_col = Symbol(col, "_1")
             res = reduce(vcat, [begin
                 deltas = [ismissing(r[col]) || ismissing(r[perm_col]) || isnan(r[col]) || isnan(r[perm_col]) ? naval : r[col] - r[perm_col]
                           for r in eachrow(df)]
+                if thres_weights !== nothing
+                    deltas .*= thres_weights
+                end
                 vals = [("opt", aggfun(deltas)[2])]
                 if !isnothing(stat_maxquantile)
                     qrange = (aggfun((0.0, 1.0))[1],
