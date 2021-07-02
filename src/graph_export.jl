@@ -286,8 +286,8 @@ function export_flowgraph(
             orig1st = orig1st_rev = nothing
         end
         if hasproperty(edge_df, :diedge_type)
-            res[!, :target_type] .= isnothing(orig1st) ? missing : edge_df.diedge_type[orig1st]
-            res[!, :source_type] .= isnothing(orig1st_rev) ? missing : edge_df.diedge_type[orig1st_rev]
+            res[!, :original_type] .= isnothing(orig1st) ? missing : edge_df.diedge_type[orig1st]
+            res[!, :original_rev_type] .= isnothing(orig1st_rev) ? missing : edge_df.diedge_type[orig1st_rev]
         end
         if hasproperty(edge_df, :flowpaths)
             paths1st = findfirst(r -> !ismissing(r.flowpaths) && !r.is_reverse, eachrow(edge_df))
