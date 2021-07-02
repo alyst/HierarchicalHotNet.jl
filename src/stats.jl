@@ -472,6 +472,10 @@ function treecut_compstats(tree::SCCTree,
     return res
 end
 
+"""
+[`treecut_stats`](@ref) metrics (dataframe columns) to consider for
+[`bin_treecut_stats`](@ref) and [`extreme_treecut_stats`](@ref).
+"""
 const TreecutMetrics = [
     :ncomponents, :ncomponents_nontrivial,
     :ncomponents_signif_mw, :ncomponents_signif_fisher,
@@ -500,10 +504,11 @@ end
 """
     bin_treecut_stats(cutstats_df::AbstractDataFrame) -> DataFrame
 
-Calculates binned treecut statistics.
+Bin treecut thresholds and calculate average statistics in each bin.
 
 Takes the output of [`HieararchicalHotNet.treecut_stats`](@ref) from
-multiple SCC trees, identif threshold bins and calculate the average metric values
+multiple SCC trees (discriminated by `by_cols`), identifies the bind for
+treecut thresholds and calculates the average metric values (`stat_cols`)
 within each bin.
 """
 function bin_treecut_stats(
@@ -557,16 +562,16 @@ quantile_suffix(q::Real) =
 """
     aggregate_treecut_binstats(binstats_df::AbstractDataFrame) -> DataFrame
 
-Aggregates the binned treecut statistics.
+Aggregate the binned treecut statistics across multiple trees.
 
-Takes the output of [`HierarchicalHotNet.bin_treecut_stats`](@ref) and
+Takes `binstats_df`, the output of [`HierarchicalHotNet.bin_treecut_stats`](@ref), and
 calculates the metric values for the specified quantiles.
 """
 function aggregate_treecut_binstats(
     binstats_df::AbstractDataFrame;
     by_cols::Union{AbstractVector{Symbol}, Symbol, Nothing} = nothing,
     quantiles::AbstractVector{<:Number} = [0.025, 0.25, 0.5, 0.75, 0.975],
-    stat_cols::AbstractVector{Symbol} = intersect(TreecutMetrics, propertynames(binstats_df))
+    metric_cols::AbstractVector{Symbol} = intersect(TreecutMetrics, propertynames(binstats_df))
 )
     used_quantiles = sort!(copy(quantiles))
     med_pos = searchsortedfirst(used_quantiles, 0.5)
@@ -574,8 +579,7 @@ function aggregate_treecut_binstats(
         insert!(used_quantiles, med_pos, 0.5)
     end
 
-    thresholds_df = binstats_df[.!nonunique(binstats_df, [:threshold_bin, :threshold_binmid]),
-                                   [:threshold_bin, :threshold_binmid]]
+    thresholds_df = select(binstats_df, :threshold_bin, :threshold_binmid) |> unique!
     @assert nrow(thresholds_df) == length(unique(thresholds_df.threshold_bin))
 
     if by_cols isa AbstractVector
@@ -592,7 +596,7 @@ function aggregate_treecut_binstats(
     aggstats_df = reduce(vcat, [begin
         res = combine(binstats_df_grouped,
                       [col => (x -> any(x -> ismissing(x) || isnan(x), x) ? NaN : quantile(x, qtl)) => col
-                       for col in stat_cols]...)
+                       for col in metric_cols]...)
         res[!, :quantile] .= qtl
         res
     end for qtl in used_quantiles])
@@ -602,8 +606,18 @@ end
 """
     extreme_treecut_stats(stats_df::AbstractDataFrame) -> DataFrame
 
-Calculates the threshold and corresponding values, where the difference
-between real and permutation metrics are maximal/minimal.
+Calculate the cut threshold and corresponding metric value, where the difference
+between real (taken from `stats_df`) and permutation metrics (taken from `perm_aggstats_df`)
+are maximal/minimal (depending on the metric).
+
+## Arguments
+  * `stats_df`: tree statistics calculated by [`treecut_stats`](@ref)
+  * `perm_aggstats_df`: aggregated binned permutated tree statistics calculated by [`aggregate_treecut_binstats`](@ref)
+  * `extra_join_cols`: optional columns, in addition to `:threshold_bin` to use for joining `stats_df` and `perm_aggstats_df`
+  * `metric_cols`: columns of `stats_df` and `perm_aggstats_df` containing treecut metrics
+     to consider for threshold calculation (see [`TreecutMetrics`](@ref))
+  * `start_maxquantile`: if specified, calculates (in addition to minimal and maximal metric)
+     the metric corresponding to the given quantile as well as ``1 - quantile``
 """
 function extreme_treecut_stats(
     stats_df::AbstractDataFrame,
@@ -613,11 +627,10 @@ function extreme_treecut_stats(
     stat_maxquantile::Union{Nothing, Number} = 0.25,
     threshold_range::Union{Tuple{<:Number, <:Number}, Nothing}=nothing
 )
-    perm_aggstats_cols = intersect(TreecutMetrics, propertynames(perm_aggstats_df))
     join_cols = [:threshold_bin]
     isnothing(extra_join_cols) || unique!(append!(join_cols, extra_join_cols))
     joinstats_df = leftjoin(select(stats_df, [join_cols; metric_cols; [:threshold]]),
-                            select(perm_aggstats_df, [join_cols; :quantile; perm_aggstats_cols]),
+                            select(perm_aggstats_df, [join_cols; :quantile; metric_cols]),
                             on=join_cols, makeunique=true)
     by_cols = [:quantile]
     isnothing(extra_join_cols) || unique!(append!(by_cols, extra_join_cols))
