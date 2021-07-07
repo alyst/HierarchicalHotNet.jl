@@ -60,7 +60,7 @@ end
                       restart_probability::Union{Number, Nothing} = nothing,
                       stepmtx_kwargs...)
 
-Calculate the matrix for the random walk with restart.
+Calculate the matrix of node transition probabilities for the random walk with restart.
 
 ### Parameters
 * `node_weights::AbstractVector`: vector of node restart probabilities
@@ -73,6 +73,36 @@ similarity_matrix(g::Union{AbstractMatrix, AbstractSimpleWeightedGraph},
     stepmtx_kwargs...) =
         random_walk_matrix(g, restart_probability; stepmtx_kwargs...) *
         Diagonal(node_weights)
+
+"""
+    stabilized_stepmatrix(g::AbstractSimpleWeightedGraph,
+                          node_weights::AbstractVector;
+                          restart_probability::Union{Number, Nothing} = nothing,
+                          stepmtx_kwargs...)
+
+Calculate the matrix for the node transition probabilities at each iteration
+of the random walk with restart taking into account the probabilities of visiting the nodes.
+
+### Parameters
+* `node_weights::AbstractVector`: vector of node restart probabilities
+* `restart_probability`: random walk restart probability
+* [`HierarchicalHotNet.stepmatrix`](@ref) keyword arguments
+"""
+stabilized_stepmatrix(
+            g::Union{AbstractMatrix, AbstractSimpleWeightedGraph},
+            node_weights::AbstractVector;
+            restart_probability::Union{Number, Nothing} = nothing,
+            stepmtx_kwargs...) =
+    stabilized_stepmatrix(stepmatrix(g; stepmtx_kwargs...), node_weights, restart_probability)
+
+function stabilized_stepmatrix(
+            stepmtx::AbstractMatrix,
+            node_weights::AbstractVector,
+            restart_probability::Number)
+    diffused_node_weights = random_walk_matrix(stepmtx, restart_probability) * node_weights
+    return stepmtx * ((1 - restart_probability) * Diagonal(diffused_node_weights)) +
+            convert(Matrix, restart_probability * Diagonal(node_weights))
+end
 
 function neighborhood_weights(adjmtx::AbstractMatrix, g::AbstractGraph)
     check_square(adjmtx, "Adjacency matrix")
