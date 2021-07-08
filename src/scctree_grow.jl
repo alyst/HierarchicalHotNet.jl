@@ -1,3 +1,5 @@
+#  Construction of SCCTree
+
 # Intermediate `SCCTreeNode` node representation used by `SCCSeedling`.
 struct SCCSeedlingNode{I}
     threshold::I        # weakest threshold the node is a part of some component
