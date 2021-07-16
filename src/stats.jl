@@ -247,84 +247,84 @@ function treecut_stats(tree::SCCTree;
     ptnpool = objpool(pools, IndicesPartition)
     comps = borrow!(ptnpool)
     comps_nontriv = borrow!(ptnpool)
-    ncomps = Vector{Int}()
-    ncomps_nontriv = Vector{Int}()
-    maxcomp_sizes = Vector{Int}()
-    topn_sizesum = Vector{Int}()
     intpool = arraypool(pools, Int)
     comps_size = borrow!(intpool)
     comps_perm = borrow!(intpool)
+
+    res = DataFrame(
+        threshold = similar(tree.thresholds, 0),
+        ncomponents = Int[],
+        ncomponents_nontrivial = Int[],
+        maxcomponent_size = Int[],
+        topn_components_sizesum = Int[],
+    )
+    if !isnothing(walkmatrix) && !isnothing(sources) && !isnothing(sinks)
+        res.nflows = Int[]
+        res.ncompflows = Int[]
+        res.flow_avglen = Float64[]
+        res.flow_avginvlen = Float64[]
+        res.compflow_avglen = Float64[]
+        res.compflow_avginvlen = Float64[]
+        res.flow_avgweight = Float64[]
+        res.flow_avghopweight = Float64[]
+        res.compflow_avgweight = Float64[]
+        res.flow_distance = Float64[]
+        res.compflow_distance = Float64[]
+
+        active_sources = copy!(borrow!(intpool), sources)
+        active_sources_new = borrow!(intpool)
+        active_sinks = copy!(borrow!(intpool), sinks)
+        active_sinks_new = borrow!(intpool)
+
+        #iwalkmatrix, weights = indexvalues!(borrow!(arraypool(pools, Int32), size(walkmatrix)),
+        #                                borrow!(arraypool(pools, eltype(walkmatrix))),
+        #                                walkmatrix, EdgeTest{eltype(walkmatrix)}(rev=tree.rev))
+
+        #if !isempty(tree.thresholds)
+        #    iminthresh = searchsortedfirst(weights, first(tree.thresholds))
+        #    imaxthresh = searchsortedfirst(weights, last(tree.thresholds))
+        #else
+        #    iminthresh = imaxthresh = 0
+        #end
+    elseif !isnothing(walkmatrix) || !isnothing(sources) || !isnothing(sinks)
+        @warn "To count source-sink flows, walkmatrix, sources and sinks must be specified"
+    end
     if !isnothing(sources)
-        topn_nsources = Vector{Int}()
-        ncompsources_v = Vector{Int}()
         insources = in(Set(sources))
-    else
-        insources = nothing
+        res.ncompsources = Int[]
+        res.topn_nsources = Int[]
     end
     if !isnothing(sinks)
-        topn_nsinks = Vector{Int}()
-        ncompsinks_v = Vector{Int}()
         insinks = in(Set(sinks))
-    else
-        insinks = nothing
+        res.ncompsinks = Int[]
+        res.topn_nsinks = Int[]
     end
-    if !isnothing(sources) && !isnothing(sinks)
-        if isnothing(walkmatrix)
-            @warn "To count source-sink flows, walkmatrix must be specified"
-            nflows_v = nothing
-        else
-            #iwalkmatrix, weights = indexvalues!(borrow!(arraypool(pools, Int32), size(walkmatrix)),
-            #                                borrow!(arraypool(pools, eltype(walkmatrix))),
-            #                                walkmatrix, EdgeTest{eltype(walkmatrix)}(rev=tree.rev))
-            active_sources = copy!(borrow!(intpool), sources)
-            active_sources_new = borrow!(intpool)
-            active_sinks = copy!(borrow!(intpool), sinks)
-            active_sinks_new = borrow!(intpool)
 
-            nflows_v = Vector{Int}()
-            ncompflows_v = Vector{Int}()
-            flow_avglen_v = Vector{Float64}()
-            flow_avginvlen_v = Vector{Float64}()
-            flow_avgweight_v = Vector{Float64}()
-            flow_avghopweight_v = Vector{Float64}()
-            compflow_avglen_v = Vector{Float64}()
-            compflow_avginvlen_v = Vector{Float64}()
-            compflow_avgweight_v = Vector{Float64}()
-            flow_dist_v = Vector{Float64}()
-            compflow_dist_v = Vector{Float64}()
-            #if !isempty(tree.thresholds)
-            #    iminthresh = searchsortedfirst(weights, first(tree.thresholds))
-            #    imaxthresh = searchsortedfirst(weights, last(tree.thresholds))
-            #else
-            #    iminthresh = imaxthresh = 0
-            #end
-        end
-    else
-        nflows_v = nothing
-    end
     lastcompsquares = 0
+    newrow = Dict{Symbol, Any}()
     #for i in 100:120
     #    thresh = tree.thresholds[i]
     for (i, thresh) in enumerate(tree.thresholds)
         cut!(comps, tree, thresh)
-        push!(maxcomp_sizes, maximum(length, comps))
-        push!(ncomps, length(comps))
-        push!(ncomps_nontriv, sum(comp -> length(comp)>1, comps))
         map!(length, resize!(comps_size, length(comps)), comps)
         sortperm!(resize!(comps_perm, length(comps)), comps_size, rev=true)
         topn_pos = min(top_count, length(comps))
         topn_comp_ixs = view(comps_perm, 1:topn_pos)
         topn_comps = view(comps, topn_comp_ixs)
-        push!(topn_sizesum, sum(view(comps_size, topn_comp_ixs)))
-        if !isnothing(insources)
-            push!(topn_nsources, sum(comp -> count(insources, comp), topn_comps))
-            push!(ncompsources_v, count(comp -> any(insources, comp), comps))
+        push!(newrow, :threshold => thresh,
+                      :maxcomponent_size => maximum(length, comps),
+                      :ncomponents => length(comps),
+                      :ncomponents_nontrivial => count(comp -> length(comp)>1, comps),
+                      :topn_components_sizesum => sum(view(comps_size, topn_comp_ixs)))
+        if hasproperty(res, :ncompsources)
+            push!(newrow, :topn_nsources => sum(comp -> count(insources, comp), topn_comps),
+                          :ncompsources => count(comp -> any(insources, comp), comps))
         end
-        if !isnothing(insinks)
-            push!(topn_nsinks, sum(comp -> count(insinks, comp), topn_comps))
-            push!(ncompsinks_v, count(comp -> any(insinks, comp), comps))
+        if hasproperty(res, :ncompsinks)
+            push!(newrow, :topn_nsinks => sum(comp -> count(insinks, comp), topn_comps),
+                          :ncompsinks => count(comp -> any(insinks, comp), comps))
         end
-        if !isnothing(nflows_v)
+        if hasproperty(res, :nflows)
             compsquares = sum(l -> ifelse(l > 1, abs2(float(l)), 0.2), comps_size)
             # check if the components changed significantly enough
             if (lastcompsquares == 0) || (i == length(tree.thresholds)) ||
@@ -336,66 +336,30 @@ function treecut_stats(tree::SCCTree;
                 flstats = flowstats(comps, walkmatrix, active_sources, active_sinks, EdgeTest{eltype(walkmatrix)}(threshold=thresh), pools,
                                     maxweight=maxweight, used_sources=active_sources_new, used_sinks=active_sinks_new)
                 nvtxflows_max = length(sources)*length(sinks)
-                ncompflows_max = last(ncompsources_v)*last(ncompsinks_v)
+                ncompflows_max = (newrow[:ncompsources]::Int)*(newrow[:ncompsinks]::Int)
                 # since the next threshold would be more stringent, only consider used sources/sinks for the next nflows()
                 active_sources, active_sources_new = active_sources_new, active_sources
                 active_sinks, active_sinks_new = active_sinks_new, active_sinks
 
-                push!(nflows_v, flowstats.nflows)
-                push!(ncompflows_v, flstats.ncompflows)
-                push!(flow_avglen_v, flstats.flowlen_sum/flstats.nflows)
-                push!(flow_avginvlen_v, flstats.flowinvlen_sum/nvtxflows_max)
-                push!(compflow_avglen_v, flstats.compflowlen_sum/flstats.ncompflows)
-                push!(compflow_avginvlen_v, flstats.compflowinvlen_sum/ncompflows_max)
-                push!(flow_avgweight_v, flstats.floweight_sum / nvtxflows_max)
-                push!(flow_avghopweight_v, flstats.flowavghopweight_sum / nvtxflows_max)
-                push!(compflow_avgweight_v, flstats.compfloweight_sum / ncompflows_max)
-                push!(flow_dist_v, ((nvtxflows_max - flstats.nflows) * (length(comps) + 1) + flstats.flowlen_sum) / nvtxflows_max)
-                push!(compflow_dist_v, ((ncompflows_max - flstats.ncompflows) * (length(comps) + 1) + flstats.compflowlen_sum) / ncompflows_max)
-            else # duplicate the last nflows
-                push!(nflows_v, last(nflows_v))
-                push!(ncompflows_v, last(ncompflows_v))
-                push!(flow_avglen_v, last(flow_avglen_v))
-                push!(flow_avginvlen_v, last(flow_avginvlen_v))
-                push!(compflow_avglen_v, last(compflow_avglen_v))
-                push!(compflow_avginvlen_v, last(compflow_avginvlen_v))
-                push!(flow_avgweight_v, last(flow_avgweight_v))
-                push!(flow_avghopweight_v, last(flow_avghopweight_v))
-                push!(compflow_avgweight_v, last(compflow_avgweight_v))
-                push!(flow_dist_v, last(flow_dist_v))
-                push!(compflow_dist_v, last(compflow_dist_v))
+                push!(newrow, :nflows => flstats.nflows,
+                    :ncompflows => flstats.ncompflows,
+                    :flow_avglen => flstats.flowlen_sum/flstats.nflows,
+                    :flow_avginvlen => flstats.flowinvlen_sum/nvtxflows_max,
+                    :compflow_avglen => flstats.compflowlen_sum/flstats.ncompflows,
+                    :compflow_avginvlen => flstats.compflowinvlen_sum/ncompflows_max,
+                    :flow_avgweight => flstats.floweight_sum / nvtxflows_max,
+                    :flow_avghopweight => flstats.flowavghopweight_sum / nvtxflows_max,
+                    :compflow_avgweight => flstats.compfloweight_sum / ncompflows_max,
+                    :flow_distance => ((nvtxflows_max - flstats.nflows) * (length(comps) + 1) + flstats.flowlen_sum) / nvtxflows_max,
+                    :compflow_distance => ((ncompflows_max - flstats.ncompflows) * (length(comps) + 1) + flstats.compflowlen_sum) / ncompflows_max)
+            else # duplicate the last nflows, newrow doesn't have to be updated
             end
         end
+        push!(res, newrow)
     end
-    res = DataFrame(
-        threshold = tree.thresholds[1:length(ncomps)],
-        ncomponents = ncomps,
-        ncomponents_nontrivial = ncomps_nontriv,
-        maxcomponent_size = maxcomp_sizes,
-        log10_maxcomponent_size = log10.(maxcomp_sizes),
-        topn_components_sizesum = topn_sizesum,
-        log10_topn_components_sizesum = log10.(topn_sizesum)
-    )
-    if !isnothing(sources)
-        res.topn_nsources = topn_nsources
-        res.ncompsources = ncompsources_v
-    end
-    if !isnothing(sinks)
-        res.topn_nsinks = topn_nsinks
-        res.ncompsinks = ncompsinks_v
-    end
-    if !isnothing(nflows_v)
-        res.nflows = nflows_v
-        res.ncompflows = ncompflows_v
-        res.flow_avglen = flow_avglen_v
-        res.flow_avginvlen = flow_avginvlen_v
-        res.compflow_avglen = compflow_avglen_v
-        res.compflow_avginvlen = compflow_avginvlen_v
-        res.flow_avgweight = flow_avgweight_v
-        res.flow_avghopweight = flow_avghopweight_v
-        res.compflow_avgweight = compflow_avgweight_v
-        res.flow_distance = flow_dist_v
-        res.compflow_distance = compflow_dist_v
+    res.log10_maxcomponent_size = log10.(res.maxcomponent_size)
+    res.log10_topn_components_sizesum = log10.(res.topn_components_sizesum)
+    if hasproperty(res, :nflows)
         # calculate avgweight quantiles
         # prepare vertex of weights for ECDF
         # the matrix has a lot of zeros, so to help sorting, we compress them into single entry

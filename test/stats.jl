@@ -8,11 +8,13 @@
     tree = HHN.scctree(walkmtx, verbose=false)
     treestats_df = HHN.treecut_stats(tree, walkmatrix=walkmtx)
     @test treestats_df isa DataFrame
+    @test !("nflows" in names(treestats_df))
 
     @testset "with flow stats" begin
         treestats_ex_df = HHN.treecut_stats(tree, walkmatrix=walkmtx,
                                             sources = [2, 4, 7], sinks = [1, 2, 3])
         @test treestats_ex_df isa DataFrame
+        @test "nflows" in names(treestats_ex_df)
         @test size(treestats_df, 1) == size(treestats_ex_df, 1)
     end
 end
