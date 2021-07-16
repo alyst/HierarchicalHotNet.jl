@@ -295,12 +295,12 @@ flowgraph(tree::SCCTree, adjmtx::AbstractMatrix,
                tree, adjmtx, sources, sinks, test, pools; kwargs...)
 
 """
-    nflows(comps::IndicesPartition, adjmtx::AbstractMatrix,
-           sources::AbstractVector{Int}, sinks::AbstractVector{Int},
-           test::EdgeTest;
-           maxweight::Union{Number, Nothing} = nothing,
-           used_sources::Union{AbstractVector{Int}, Nothing}=nothing,
-           used_sinks::Union{AbstractVector{Int}, Nothing}=nothing) -> NamedTupe
+    flowstats(comps::IndicesPartition, adjmtx::AbstractMatrix,
+              sources::AbstractVector{Int}, sinks::AbstractVector{Int},
+              test::EdgeTest;
+              maxweight::Union{Number, Nothing} = nothing,
+              used_sources::Union{AbstractVector{Int}, Nothing}=nothing,
+              used_sinks::Union{AbstractVector{Int}, Nothing}=nothing) -> NamedTupe
 
 Calculates statistics from the flows from *sources* to *sinks* vertices
 in the weighted directed graph defined by *adjmtx* and *test* and the *comps* vertex components.
@@ -327,7 +327,7 @@ Returns the *NamedTuple* with the following fields
 * `used_sinks::AbstractVector{Int}`: if specified, acts as an output parameter that contains the
    sorted list of sinks that have incoming flows
 """
-function nflows(
+function flowstats(
     comps::IndicesPartition,
     adjmtx::AbstractMatrix,
     sources::AbstractVector{Int}, sinks::AbstractVector{Int},
@@ -423,7 +423,7 @@ function nflows(
             ncompsinks = ncompsinks)
 end
 
-function nflows(
+function flowstats(
     tree::SCCTree, adjmtx::AbstractMatrix,
     sources::AbstractVector{Int}, sinks::AbstractVector{Int},
     test::EdgeTest,
@@ -432,7 +432,7 @@ function nflows(
 )
     ptnpool = objpool(pools, IndicesPartition)
     comps = cut!(empty!(borrow!(ptnpool)), tree, test.threshold)
-    res = nflows(comps, adjmtx, sources, sinks, test, pools; kwargs...)
+    res = flowstats(comps, adjmtx, sources, sinks, test, pools; kwargs...)
     release!(ptnpool, comps)
     return res
 end

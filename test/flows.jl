@@ -156,8 +156,8 @@ end
                           (7 => 6, 1 => 5, HHN.FlowInfo(1, adjmtx[6, 7]))]
     @test sort(subgraph) == [(1 => 6, 4 => 5), (2 => 7, 1 => 1), (3 => 2, 1 => 1), (3 => 7, 1 => 1),
                              (5 => 7, 3 => 1), (7 => 3, 1 => 1), (7 => 6, 1 => 5)]
-    @test HHN.nflows(tree, adjmtx, [1, 4, 5, 7], [2, 4, 6],
-                     HHN.EdgeTest{Float64}(threshold=20)) == (nflows=6, ncompflows=6,
+    @test HHN.flowstats(tree, adjmtx, [1, 4, 5, 7], [2, 4, 6],
+                        HHN.EdgeTest{Float64}(threshold=20)) == (nflows=6, ncompflows=6,
                                                               flowlen_sum=5, compflowlen_sum=5,
                                                               flowinvlen_sum=23/6, compflowinvlen_sum=23/6,
                                                               compflowlen_max=2,
@@ -228,6 +228,6 @@ end
         stepmtx = [0.0 0.0 0.0; 1.0 0.0 0.0; 1.0 1.0 0.0]
         walkmtx = [0.0 0.0 0.0; 0.0 0.0 0.0; 1.0 0.0 0.0]
         @test HHN.traceflows(stepmtx, HHN.EdgeTest{Float64}(threshold=0.5),
-                             walkmtx, HHN.EdgeTest{Float64}(threshold=0.5)) == Dict((1=>3) => [[2], []])
+                             walkmtx, HHN.EdgeTest{Float64}(threshold=0.5)) == Dict((1=>3) => [[2], Int[]])
     end
 end

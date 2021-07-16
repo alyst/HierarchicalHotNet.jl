@@ -333,9 +333,8 @@ function treecut_stats(tree::SCCTree;
                 #ithresh = searchsortedfirst(weights, thresh)
                 #@assert (ithresh <= length(weights)) && (weights[ithresh] == thresh)
                 foreach(sort!, comps) # sorting improves condense!(iwalkmatrix) performace
-                flowstats =
-                    nflows(comps, walkmatrix, active_sources, active_sinks, EdgeTest{eltype(walkmatrix)}(threshold=thresh), pools,
-                           maxweight=maxweight, used_sources=active_sources_new, used_sinks=active_sinks_new)
+                flstats = flowstats(comps, walkmatrix, active_sources, active_sinks, EdgeTest{eltype(walkmatrix)}(threshold=thresh), pools,
+                                    maxweight=maxweight, used_sources=active_sources_new, used_sinks=active_sinks_new)
                 nvtxflows_max = length(sources)*length(sinks)
                 ncompflows_max = last(ncompsources_v)*last(ncompsinks_v)
                 # since the next threshold would be more stringent, only consider used sources/sinks for the next nflows()
@@ -343,16 +342,16 @@ function treecut_stats(tree::SCCTree;
                 active_sinks, active_sinks_new = active_sinks_new, active_sinks
 
                 push!(nflows_v, flowstats.nflows)
-                push!(ncompflows_v, flowstats.ncompflows)
-                push!(flow_avglen_v, flowstats.flowlen_sum/flowstats.nflows)
-                push!(flow_avginvlen_v, flowstats.flowinvlen_sum/nvtxflows_max)
-                push!(compflow_avglen_v, flowstats.compflowlen_sum/flowstats.ncompflows)
-                push!(compflow_avginvlen_v, flowstats.compflowinvlen_sum/ncompflows_max)
-                push!(flow_avgweight_v, flowstats.floweight_sum / nvtxflows_max)
-                push!(flow_avghopweight_v, flowstats.flowavghopweight_sum / nvtxflows_max)
-                push!(compflow_avgweight_v, flowstats.compfloweight_sum / ncompflows_max)
-                push!(flow_dist_v, ((nvtxflows_max - flowstats.nflows) * (length(comps) + 1) + flowstats.flowlen_sum) / nvtxflows_max)
-                push!(compflow_dist_v, ((ncompflows_max - flowstats.ncompflows) * (length(comps) + 1) + flowstats.compflowlen_sum) / ncompflows_max)
+                push!(ncompflows_v, flstats.ncompflows)
+                push!(flow_avglen_v, flstats.flowlen_sum/flstats.nflows)
+                push!(flow_avginvlen_v, flstats.flowinvlen_sum/nvtxflows_max)
+                push!(compflow_avglen_v, flstats.compflowlen_sum/flstats.ncompflows)
+                push!(compflow_avginvlen_v, flstats.compflowinvlen_sum/ncompflows_max)
+                push!(flow_avgweight_v, flstats.floweight_sum / nvtxflows_max)
+                push!(flow_avghopweight_v, flstats.flowavghopweight_sum / nvtxflows_max)
+                push!(compflow_avgweight_v, flstats.compfloweight_sum / ncompflows_max)
+                push!(flow_dist_v, ((nvtxflows_max - flstats.nflows) * (length(comps) + 1) + flstats.flowlen_sum) / nvtxflows_max)
+                push!(compflow_dist_v, ((ncompflows_max - flstats.ncompflows) * (length(comps) + 1) + flstats.compflowlen_sum) / ncompflows_max)
             else # duplicate the last nflows
                 push!(nflows_v, last(nflows_v))
                 push!(ncompflows_v, last(ncompflows_v))
