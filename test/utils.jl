@@ -70,6 +70,22 @@ end
     @test HHN.indexvalues(Int, mtx1, HHN.EdgeTest{Float64}(threshold=1.5)) == ([0 0; 0 0], Float64[])
     @test HHN.indexvalues(Int, mtx1, HHN.EdgeTest{Float64}(rev=true, threshold=2.5)) == ([0 1; 0 0], [3.0])
     @test HHN.indexvalues(Int, mtx1, HHN.EdgeTest{Float64}(rev=true, threshold=3.0)) == ([0 1; 0 0], [3.0])
+
+    @testset "with SparseMatrix" begin
+        using SparseArrays
+
+        @test HHN.indexvalues(Int, sparse(fill(0.0, (0, 0)))) == (sparse(fill(0, (0, 0))), Float64[])
+        @test HHN.indexvalues(Int, sparse(fill(2.0, (1, 1)))) == (sparse(fill(1, (1, 1))), [2.0])
+        spmtx1 = sparse(mtx1)
+        @test HHN.indexvalues(Int, spmtx1) == (sparse([0 2; 1 0]), [2.0, 3.0])
+        @test HHN.indexvalues(Int, spmtx1, HHN.EdgeTest{Float64}(rev=true)) == (sparse([0 1; 2 0]), [3.0, 2.0])
+        @test HHN.indexvalues(Int, spmtx1, HHN.EdgeTest{Float64}(skipval=nothing)) == (sparse([0 2; 1 0]), [2.0, 3.0]) # skipping structure zeroes doesn't work
+        @test HHN.indexvalues(Int, spmtx1, HHN.EdgeTest{Float64}(threshold=2.5)) == (sparse([0 0; 1 0]), [2.0])
+        @test HHN.indexvalues(Int, spmtx1, HHN.EdgeTest{Float64}(threshold=2.0)) == (sparse([0 0; 1 0]), [2.0])
+        @test HHN.indexvalues(Int, spmtx1, HHN.EdgeTest{Float64}(threshold=1.5)) == (sparse([0 0; 0 0]), Float64[])
+        @test HHN.indexvalues(Int, spmtx1, HHN.EdgeTest{Float64}(rev=true, threshold=2.5)) == (sparse([0 1; 0 0]), [3.0])
+        @test HHN.indexvalues(Int, spmtx1, HHN.EdgeTest{Float64}(rev=true, threshold=3.0)) == (sparse([0 1; 0 0]), [3.0])
+    end
 end
 
 @testset "condensed()" begin

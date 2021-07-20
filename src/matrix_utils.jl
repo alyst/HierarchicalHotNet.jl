@@ -41,6 +41,33 @@ indexvalues(::Type{I}, A::AbstractArray{T}, test::EdgeTest{T} = EdgeTest{T}();
             kwargs...) where {T, I <: Integer} =
     indexvalues!(similar(A, I), Vector{T}(), A, test; kwargs...)
 
+using SparseArrays
+
+function indexvalues(::Type{I}, A::SparseMatrixCSC{T}, test::EdgeTest{T} = EdgeTest{T}();
+                     kwargs...) where {T, I <: Integer}
+    weights = sortedvalues!(Vector{T}(), nonzeros(A), test; kwargs...)
+    weightdict = Dict{T, I}(val => i for (i, val) in enumerate(weights))
+    # convert adjmtx to weight indices. higher index=stronger edge
+    Arowvals = rowvals(A)
+    Anz = nonzeros(A)
+    inonzeros = sizehint!(Vector{I}(), nnz(A))
+    icolptr = similar(A.colptr, 0)
+    irowvals = sizehint!(similar(Arowvals, 0), nnz(A))
+    push!(icolptr, 1)
+    @inbounds for j in 1:size(A, 2)
+        for k in nzrange(A, j)
+            i = Arowvals[k]
+            a = Anz[k]
+            if isindexed(a, test)
+                push!(inonzeros, weightdict[a])#searchsortedfirst(weights, a, rev=rev)
+                push!(irowvals, i)
+            end
+        end
+        push!(icolptr, length(irowvals) + 1)
+    end
+    return SparseMatrixCSC(size(A)..., icolptr, irowvals, inonzeros), weights
+end
+
 empty_adjacencymatrix(::Type{M}, ::Type{T} = eltype(M)) where {M <: AbstractMatrix, T} =
     Matrix{T}(undef, (0, 0))
 
