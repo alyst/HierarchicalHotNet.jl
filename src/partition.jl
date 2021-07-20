@@ -168,6 +168,7 @@ end
 Partition of an integer vector
 """
 const IndicesPartition = Partition{Int}
+const IndicesPartitionPart = eltype(IndicesPartition)
 
 IndicesPartition(n::Integer=0; nparts::Integer=n) =
     reset!(IndicesPartition(Vector{Int}(undef, n), Vector{Int}()), nparts=nparts)
