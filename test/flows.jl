@@ -157,13 +157,14 @@ end
     @test sort(subgraph) == [(1 => 6, 4 => 5), (2 => 7, 1 => 1), (3 => 2, 1 => 1), (3 => 7, 1 => 1),
                              (5 => 7, 3 => 1), (7 => 3, 1 => 1), (7 => 6, 1 => 5)]
     @test HHN.flowstats(tree, adjmtx, [1, 4, 5, 7], [2, 4, 6],
-                        HHN.EdgeTest{Float64}(threshold=20)) == (nflows=6, ncompflows=6,
-                                                              flowlen_sum=5, compflowlen_sum=5,
-                                                              flowinvlen_sum=23/6, compflowinvlen_sum=23/6,
-                                                              compflowlen_max=2,
-                                                              floweight_sum = 46.0, compfloweight_sum = 141.0,
-                                                              flowavghopweight_sum = 23.0,
-                                                              ncompsources=4, ncompsinks=3)
+                        HHN.EdgeTest{Float64}(threshold=20), sourcesinkweights=adjmtx) ==
+                       (nflows=6, ncompflows=6,
+                        flowlen_sum=5, compflowlen_sum=5,
+                        flowinvlen_sum=23/6, compflowinvlen_sum=23/6,
+                        compflowlen_max=2,
+                        floweight_sum = 46.0, compfloweight_sum = 141.0,
+                        flowavghopweight_sum = 23.0,
+                        ncompsources=4, ncompsinks=3)
 
     @testset "Flows only" begin
         flows2 = Vector{HHN.CompFlow}()

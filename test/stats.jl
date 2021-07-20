@@ -16,5 +16,16 @@
         @test treestats_ex_df isa DataFrame
         @test "nflows" in names(treestats_ex_df)
         @test size(treestats_df, 1) == size(treestats_ex_df, 1)
+        @test all(isnan, treestats_ex_df.flow_avgweight)
+        @test all(isnan, treestats_ex_df.flow_avghopweight)
+
+        @testset "with source-sink weights" begin
+            treestats_ex_df = HHN.treecut_stats(tree, walkmatrix=walkmtx, sourcesinkweights=walkmtx,
+                                                sources = [2, 4, 7], sinks = [1, 2, 3])
+            @test treestats_ex_df isa DataFrame
+            @test size(treestats_df, 1) == size(treestats_ex_df, 1)
+            @test all(!isnan, treestats_ex_df.flow_avgweight)
+            @test all(!isnan, treestats_ex_df.flow_avghopweight)
+        end
     end
 end

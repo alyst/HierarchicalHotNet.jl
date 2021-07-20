@@ -241,6 +241,7 @@ function treecut_stats(tree::SCCTree;
                        maxweight::Union{Number, Nothing}=nothing,
                        sources::Union{AbstractVector, Nothing}=nothing,
                        sinks::Union{AbstractVector, Nothing}=nothing,
+                       sourcesinkweights::Union{AbstractMatrix, Nothing}=nothing,
                        top_count::Integer=5,
                        pools::Union{ObjectPools, Nothing} = nothing,
                        nflows_ratio::Number=0.9)
@@ -334,7 +335,8 @@ function treecut_stats(tree::SCCTree;
                 #@assert (ithresh <= length(weights)) && (weights[ithresh] == thresh)
                 foreach(sort!, comps) # sorting improves condense!(iwalkmatrix) performace
                 flstats = flowstats(comps, walkmatrix, active_sources, active_sinks, EdgeTest{eltype(walkmatrix)}(threshold=thresh), pools,
-                                    maxweight=maxweight, used_sources=active_sources_new, used_sinks=active_sinks_new)
+                                    maxweight=maxweight, used_sources=active_sources_new, used_sinks=active_sinks_new,
+                                    sourcesinkweights=sourcesinkweights)
                 nvtxflows_max = length(sources)*length(sinks)
                 ncompflows_max = (newrow[:ncompsources]::Int)*(newrow[:ncompsinks]::Int)
                 # since the next threshold would be more stringent, only consider used sources/sinks for the next nflows()

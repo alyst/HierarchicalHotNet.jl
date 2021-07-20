@@ -333,6 +333,7 @@ function flowstats(
     sources::AbstractVector{Int}, sinks::AbstractVector{Int},
     test::EdgeTest,
     pools::Union{ObjectPools, Nothing} = nothing;
+    sourcesinkweights::Union{AbstractMatrix, Nothing} = nothing,
     maxweight::Union{Number, Nothing} = nothing,
     used_sources::Union{AbstractVector{Int}, Nothing}=nothing,
     used_sinks::Union{AbstractVector{Int}, Nothing}=nothing
@@ -368,16 +369,20 @@ function flowstats(
             npairs = length(compsources[compi])*length(compsinks[compj])
             nvtxflows += npairs
 
-            cur_floweight_sum = 0.0 # all pairwise flows between the vertices of current components
-            for src in compsources[compi]
-                src_flows = view(adjmtx, :, src)
-                for snk in compsinks[compj]
-                    floweight = src_flows[snk]
-                    if !isnothing(maxweight) && (floweight > maxweight)
-                        floweight = maxweight
+            if !isnothing(sourcesinkweights)
+                cur_floweight_sum = 0.0 # all pairwise flows between the vertices of current components
+                for src in compsources[compi]
+                    src_flows = view(sourcesinkweights, :, src)
+                    for snk in compsinks[compj]
+                        floweight = src_flows[snk]
+                        if !isnothing(maxweight) && (floweight > maxweight)
+                            floweight = maxweight
+                        end
+                        cur_floweight_sum += floweight
                     end
-                    cur_floweight_sum += floweight
                 end
+            else
+                cur_floweight_sum = NaN
             end
             if !isnothing(used_sources) && !used_compsources[compi]
                 used_compsources[compi] = true
