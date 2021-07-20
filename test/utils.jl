@@ -58,6 +58,20 @@ end
     @test all(x -> x >= 20, rvals20)
 end
 
+@testset "indexvalues()" begin
+    @test HHN.indexvalues(Int, fill(0.0, (0, 0))) == (fill(0, (0, 0)), Float64[])
+    @test HHN.indexvalues(Int, fill(2.0, (1, 1))) == (fill(1, (1, 1)), [2.0])
+    mtx1 = [0.0 3.0; 2.0 0.0]
+    @test HHN.indexvalues(Int, mtx1) == ([0 2; 1 0], [2.0, 3.0])
+    @test HHN.indexvalues(Int, mtx1, HHN.EdgeTest{Float64}(rev=true)) == ([0 1; 2 0], [3.0, 2.0])
+    @test HHN.indexvalues(Int, mtx1, HHN.EdgeTest{Float64}(skipval=nothing)) == ([1 3; 2 1], [0.0, 2.0, 3.0])
+    @test HHN.indexvalues(Int, mtx1, HHN.EdgeTest{Float64}(threshold=2.5)) == ([0 0; 1 0], [2.0])
+    @test HHN.indexvalues(Int, mtx1, HHN.EdgeTest{Float64}(threshold=2.0)) == ([0 0; 1 0], [2.0])
+    @test HHN.indexvalues(Int, mtx1, HHN.EdgeTest{Float64}(threshold=1.5)) == ([0 0; 0 0], Float64[])
+    @test HHN.indexvalues(Int, mtx1, HHN.EdgeTest{Float64}(rev=true, threshold=2.5)) == ([0 1; 0 0], [3.0])
+    @test HHN.indexvalues(Int, mtx1, HHN.EdgeTest{Float64}(rev=true, threshold=3.0)) == ([0 1; 0 0], [3.0])
+end
+
 @testset "condensed()" begin
     @test_throws DimensionMismatch HHN.condense(reshape([1], (1, 1)), [[1], [2]])
     @test_throws DimensionMismatch HHN.condense(reshape([1, 2], (1, 2)), [[1]])

@@ -2,17 +2,19 @@ check_square(mtx::AbstractMatrix, label::AbstractString = "Matrix") =
     (size(mtx, 1) == size(mtx, 2)) ||
         throw(DimensionMismatch("$label needs to be square, $(size(mtx)) found"))
 
+# check if the value `a` should be indexed by sortedvalues()/indexvalues()
+isindexed(a, test::EdgeTest{T}) where T =
+    (isnothing(skipval(test)) || (a != skipval(test))) &&
+    (isnothing(test.threshold) || !isstronger(a, test.threshold, rev=isreverse(test)))
+
 function sortedvalues!(res::AbstractVector{T}, A::AbstractArray{T},
                        test::EdgeTest{T} = EdgeTest{T}();
                        alg=Base.Sort.defalg(A)) where T
     empty!(res)
     isempty(A) && return res
     sizehint!(res, isnothing(skipval(test)) ? length(A) : sum(w -> w != skipval(test), A))
-    for a in A
-        if (isnothing(skipval(test)) || (a != skipval(test))) &&
-           (isnothing(test.threshold) || !isstronger(a, test.threshold, rev=isreverse(test)))
-            push!(res, a)
-        end
+    @inbounds for a in A
+        isindexed(a, test) && push!(res, a)
     end
     unique!(sort!(res, alg=alg, rev=isreverse(test)))
     return res
@@ -30,9 +32,7 @@ function indexvalues!(iA::AbstractMatrix{I}, weights::AbstractVector{T},
     # convert adjmtx to weight indices. higher index=stronger edge
     iA = fill!(reshape(resize!(vec(iA), length(A)), size(A)), 0)
     @inbounds for (i, a) in enumerate(A)
-        if isnothing(skipval(test)) || a != skipval(test)
-            iA[i] = weightdict[a]#searchsortedfirst(weights, a, rev=rev)
-        end
+        isindexed(a, test) && (iA[i] = weightdict[a]) #searchsortedfirst(weights, a, rev=rev))
     end
     return iA, weights
 end
