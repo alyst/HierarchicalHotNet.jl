@@ -81,6 +81,9 @@ struct SCCTreeFlowsPeeling{T}
     sources::Set{VertexId}          # ids of the source vertices in the original graph
     sinks::Set{VertexId}            # ids of the sink vertices in the original graph
 
+    node_indices::Dict{NodeId, Int}    # maps ids of SCCTree node to the index of the corresponding part in node_vertices_parts
+    node_vertices::IndicesPartition    # each part are the indices of the vertices of some SCCTree node
+
     function SCCTreeFlowsPeeling(tree::SCCTree{T}, adjmtx::AbstractMatrix,
                                 sources::AbstractVector{VertexId},
                                 sinks::AbstractVector{VertexId};
@@ -98,11 +101,49 @@ struct SCCTreeFlowsPeeling{T}
         spiadjmtx = sparse(iadjmtx)
         verbose && @info "SCCTreeFlowsPeels: $(size(spiadjmtx, 1)) vertice(s), $(nnz(spiadjmtx)) edge(s) with $(length(ithresholds)) threshold(s) imported"
 
-        return new{T}(tree, spiadjmtx, weights, ithresholds, Set(sources), Set(sinks))
+        return new{T}(tree, spiadjmtx, weights, ithresholds, Set(sources), Set(sinks), cache_node_vertices(tree)...)
     end
 end
 
 nthresholds(peeling::SCCTreeFlowsPeeling) = length(peeling.ithresholds)
+
+function cache_node_vertices(tree::SCCTree)
+    vtxparts = IndicesPartition()
+    nodeindices = Dict{NodeId, Int}()
+
+    nodestack = Vector{Tuple{NodeId, Int}}()
+    nvertices(tree) > 0 && push!(nodestack, (1, 0))
+    while !isempty(nodestack)
+        id, childix = last(nodestack)
+        node = tree.nodes[id]
+        if childix < length(node.children)
+            # process the next child node
+            childix += 1
+            nodestack[end] = (id, childix)
+            push!(nodestack, (node.children[childix], 0))
+        else
+            # all children processed, fill the node
+            append!(elems(vtxparts), node.vertices)
+            for childid in node.children
+                childix = nodeindices[childid]
+                childrange = partrange(vtxparts, childix)
+                nelms = nelems(vtxparts)
+                resize!(elems(vtxparts), nelms + length(childrange))
+                unsafe_copyto!(elems(vtxparts), nelms + 1, elems(vtxparts), first(childrange), length(childrange))
+            end
+            closepart!(vtxparts)
+            #sort!(vtxparts[end]) # sort vertices
+            # add the node
+            nodeindices[id] = length(vtxparts)
+            pop!(nodestack)
+        end
+    end
+    @assert length(nodeindices) == length(vtxparts) == length(tree.nodes)
+    return nodeindices, vtxparts
+end
+
+node_vertices(peeling::SCCTreeFlowsPeeling, id::NodeId) =
+    peeling.node_vertices[peeling.node_indices[id]]
 
 # Implements efficient enumeration of source->sink flows
 # for each SCCTree cutting threshold.
@@ -507,16 +548,8 @@ function update!(flow::SourceFlowsPeel,
     return flow
 end
 
-function pushvertices!(vertices::IndicesPartition, tree::SCCTree, node::SCCTreeNode)
-    append!(vertices.elems, node.vertices)
-    for childid in node.children
-        child = tree.nodes[childid]
-        pushvertices!(vertices, tree, child)
-    end
-    return vertices
-end
-
-function collect_subnodes(node::FlowsPeelNode, thresh::Number, tree::SCCTree)
+function collect_subnodes(node::FlowsPeelNode, thresh::Number, peeling::SCCTreeFlowsPeeling)
+    tree = peeling.tree
     (node.id > length(tree.nodes)) && return nothing # it's a vertex
     # skip nodes that are stronger than the threshold
     node_thresh = tree.nodes[node.id].threshold
@@ -525,15 +558,19 @@ function collect_subnodes(node::FlowsPeelNode, thresh::Number, tree::SCCTree)
 
     sccnode = tree.nodes[node.id]
     subnode2vertices = IndicesPartition()
+    sizehint!(elems(subnode2vertices), nvertices(sccnode))
     subnodeids = Vector{NodeId}()
     for vertex in sccnode.vertices
         pushelem!(subnode2vertices, vertex)
         closepart!(subnode2vertices)
         push!(subnodeids, length(tree.nodes) + vertex) # vertex without component
     end
-    for childid in sccnode.children
-        child = tree.nodes[childid]
-        pushvertices!(subnode2vertices, tree, child)
+    @inbounds for childid in sccnode.children
+        nelms = nelems(subnode2vertices)
+        childvtxs = node_vertices(peeling, childid)
+        childrange = parentindices(childvtxs)[1]
+        resize!(elems(subnode2vertices), nelms + length(childrange))
+        unsafe_copyto!(elems(subnode2vertices), nelms + 1, parent(childvtxs), first(childrange), length(childrange))
         closepart!(subnode2vertices)
         push!(subnodeids, childid)
     end
@@ -546,7 +583,7 @@ function collect_expanded_nodes!(it::SCCTreeFlowsPeelingIterator)
     nodes_subnodes = IndicesPartition()
     thresh = threshold(it)
     for node in values(it.nodes)
-        subnodes = collect_subnodes(node, thresh, it.peeling.tree)
+        subnodes = collect_subnodes(node, thresh, it.peeling)
         if subnodes !== nothing
             subids, subnode2vertices = subnodes
             @assert length(subids) > 1
