@@ -55,13 +55,14 @@ function componentsflowgraph!(
         @assert isempty(dfs_stack)
         push!(dfs_stack, (v, 0))
         @assert isnothing(reachable[v])
-        if !ispartempty(compsinks, v) # initialize reachable list of not-yet-visited vertices
-            vsinks = empty!(borrow!(setpool))
-            vsinks[v] = 0
-            reachable[v] = vsinks
-        end
         while !isempty(dfs_stack)
             v, edgeitstate = dfs_stack[end]
+            if !visited[v] && !ispartempty(compsinks, v)
+                # initialize reachable list of not-yet-visited vertices
+                vsinks = empty!(borrow!(setpool))
+                vsinks[v] = 0
+                reachable[v] = vsinks
+            end
             @assert edgeitstate >= 0
             edgeit = outedges(adjmtx, v, test)
             visited[v] = true
@@ -87,11 +88,6 @@ function componentsflowgraph!(
             if u > 0 # follow v->u Diedge
                 push!(dfs_stack, (u, 0))
                 @assert isnothing(reachable[u])
-                if !ispartempty(compsinks, u)
-                    usinks = empty!(borrow!(setpool))
-                    usinks[u] = 0
-                    reachable[u] = usinks
-                end
             else # backtrack from v
                 pop!(dfs_stack)
                 if !ispartempty(compsources, v)
