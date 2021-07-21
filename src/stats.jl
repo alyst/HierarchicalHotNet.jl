@@ -243,8 +243,7 @@ function treecut_stats(tree::SCCTree;
                        sinks::Union{AbstractVector, Nothing}=nothing,
                        sourcesinkweights::Union{AbstractMatrix, Nothing}=nothing,
                        top_count::Integer=5,
-                       pools::Union{ObjectPools, Nothing} = nothing,
-                       nflows_ratio::Number=0.9)
+                       pools::Union{ObjectPools, Nothing} = nothing)
     ptnpool = objpool(pools, IndicesPartition)
     comps = borrow!(ptnpool)
     comps_nontriv = borrow!(ptnpool)
@@ -272,11 +271,7 @@ function treecut_stats(tree::SCCTree;
         res.flow_distance = Float64[]
         res.compflow_distance = Float64[]
 
-        active_sources = copy!(borrow!(intpool), sources)
-        active_sources_new = borrow!(intpool)
-        active_sinks = copy!(borrow!(intpool), sinks)
-        active_sinks_new = borrow!(intpool)
-
+        peelit = eachflowspeel(tree, walkmatrix, sources, sinks, verbose=false)
         #iwalkmatrix, weights = indexvalues!(borrow!(arraypool(pools, Int32), size(walkmatrix)),
         #                                borrow!(arraypool(pools, eltype(walkmatrix))),
         #                                walkmatrix, EdgeTest{eltype(walkmatrix)}(rev=tree.rev))
@@ -289,6 +284,7 @@ function treecut_stats(tree::SCCTree;
         #end
     elseif !isnothing(walkmatrix) || !isnothing(sources) || !isnothing(sinks)
         @warn "To count source-sink flows, walkmatrix, sources and sinks must be specified"
+        peelit = nothing
     end
     if !isnothing(sources)
         insources = in(Set(sources))
@@ -301,8 +297,8 @@ function treecut_stats(tree::SCCTree;
         res.topn_nsinks = Int[]
     end
 
-    lastcompsquares = 0
     newrow = Dict{Symbol, Any}()
+    ithresholdpos = 0
     #for i in 100:120
     #    thresh = tree.thresholds[i]
     for (i, thresh) in enumerate(tree.thresholds)
@@ -326,36 +322,23 @@ function treecut_stats(tree::SCCTree;
                           :ncompsinks => count(comp -> any(insinks, comp), comps))
         end
         if hasproperty(res, :nflows)
-            compsquares = sum(l -> ifelse(l > 1, abs2(float(l)), 0.2), comps_size)
-            # check if the components changed significantly enough
-            if (lastcompsquares == 0) || (i == length(tree.thresholds)) ||
-               (compsquares/lastcompsquares <= nflows_ratio)
-                lastcompsquares = compsquares
-                #ithresh = searchsortedfirst(weights, thresh)
-                #@assert (ithresh <= length(weights)) && (weights[ithresh] == thresh)
-                foreach(sort!, comps) # sorting improves condense!(iwalkmatrix) performace
-                flstats = flowstats(comps, walkmatrix, active_sources, active_sinks, EdgeTest{eltype(walkmatrix)}(threshold=thresh), pools,
-                                    maxweight=maxweight, used_sources=active_sources_new, used_sinks=active_sinks_new,
-                                    sourcesinkweights=sourcesinkweights)
-                nvtxflows_max = length(sources)*length(sinks)
-                ncompflows_max = (newrow[:ncompsources]::Int)*(newrow[:ncompsinks]::Int)
-                # since the next threshold would be more stringent, only consider used sources/sinks for the next nflows()
-                active_sources, active_sources_new = active_sources_new, active_sources
-                active_sinks, active_sinks_new = active_sinks_new, active_sinks
+            flows, ithresholdpos = iterate(peelit, ithresholdpos)
+            @assert threshold(flows) == thresh
+            flstats = flowstats(flows, maxweight=maxweight, sourcesinkweights=sourcesinkweights)
+            nvtxflows_max = length(sources)*length(sinks)
+            ncompflows_max = (newrow[:ncompsources]::Int)*(newrow[:ncompsinks]::Int)
 
-                push!(newrow, :nflows => flstats.nflows,
-                    :ncompflows => flstats.ncompflows,
-                    :flow_avglen => flstats.flowlen_sum/flstats.nflows,
-                    :flow_avginvlen => flstats.flowinvlen_sum/nvtxflows_max,
-                    :compflow_avglen => flstats.compflowlen_sum/flstats.ncompflows,
-                    :compflow_avginvlen => flstats.compflowinvlen_sum/ncompflows_max,
-                    :flow_avgweight => flstats.floweight_sum / nvtxflows_max,
-                    :flow_avghopweight => flstats.flowavghopweight_sum / nvtxflows_max,
-                    :compflow_avgweight => flstats.compfloweight_sum / ncompflows_max,
-                    :flow_distance => ((nvtxflows_max - flstats.nflows) * (length(comps) + 1) + flstats.flowlen_sum) / nvtxflows_max,
-                    :compflow_distance => ((ncompflows_max - flstats.ncompflows) * (length(comps) + 1) + flstats.compflowlen_sum) / ncompflows_max)
-            else # duplicate the last nflows, newrow doesn't have to be updated
-            end
+            push!(newrow, :nflows => flstats.nflows,
+                :ncompflows => flstats.ncompflows,
+                :flow_avglen => flstats.flowlen_sum/flstats.nflows,
+                :flow_avginvlen => flstats.flowinvlen_sum/nvtxflows_max,
+                :compflow_avglen => flstats.compflowlen_sum/flstats.ncompflows,
+                :compflow_avginvlen => flstats.compflowinvlen_sum/ncompflows_max,
+                :flow_avgweight => flstats.floweight_sum / nvtxflows_max,
+                :flow_avghopweight => flstats.flowavghopweight_sum / nvtxflows_max,
+                :compflow_avgweight => flstats.compfloweight_sum / ncompflows_max,
+                :flow_distance => ((nvtxflows_max - flstats.nflows) * (length(comps) + 1) + flstats.flowlen_sum) / nvtxflows_max,
+                :compflow_distance => ((ncompflows_max - flstats.ncompflows) * (length(comps) + 1) + flstats.compflowlen_sum) / ncompflows_max)
         end
         push!(res, newrow)
     end
@@ -374,10 +357,6 @@ function treecut_stats(tree::SCCTree;
                 nzeros += 1
             end
         end
-        release!(intpool, active_sources)
-        release!(intpool, active_sources_new)
-        release!(intpool, active_sinks)
-        release!(intpool, active_sinks_new)
         #release!(arraypool(pools, Int32), iwalkmatrix)
         #release!(arraypool(pools, eltype(walkmatrix)), weights)
     end
