@@ -19,6 +19,7 @@ include("connected_components.jl")
 include("scctree_grow.jl")
 include("scctree.jl")
 include("flows.jl")
+include("flows_peeler.jl")
 include("stats.jl")
 include("graph_export.jl")
 
