@@ -206,7 +206,7 @@ function export_flowgraph(
                          walkweight_rev = threshold,
                          flow = srccomp == trgcomp ? "loop" : "flow",
                          flowlen = info.len,
-                         floweight = info.weight))
+                         floweight = info.minweight))
     end
 
     if nrow(flows_df) > 0

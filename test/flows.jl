@@ -70,11 +70,11 @@
 
     @testset "3x3" begin
         subgraph, flows = HHN.componentsflowgraph([0 0 0; 1 0 0; 0 1 0], [[1], [], []], [[], [], [1]])
-        @test flows == [(1 => 3, HHN.FlowInfo(2, 0.0))]
+        @test flows == [(1 => 3, HHN.FlowInfo(2, 1.0))]
         @test sort(subgraph) == [1 => 2, 2 => 3]
 
         subgraph, flows = HHN.componentsflowgraph([0 0 0; 0.5 0 0; 0 0.7 0], [[1], [1], []], [[], [], [1]])
-        @test sort(flows) == [(1 => 3, HHN.FlowInfo(2, 0.0)), (2 => 3, HHN.FlowInfo(1, 0.7))]
+        @test sort(flows) == [(1 => 3, HHN.FlowInfo(2, 0.5)), (2 => 3, HHN.FlowInfo(1, 0.7))]
         @test sort(subgraph) == [1 => 2, 2 => 3]
 
         subgraph, flows = HHN.componentsflowgraph([0 0 0; 0.5 0 0; 0 0.7 0], [[], [1], []], [[], [], [1]])
@@ -101,7 +101,7 @@
         subgraph, flows = HHN.componentsflowgraph([0 0 0 0; 1 0 0 0; 0 1 0 0; 0 1 0 0],
                                     [[1], [], [], []],
                                     [[], [], [1], []])
-        @test flows == [(1 => 3, HHN.FlowInfo(2, 0.0))]
+        @test flows == [(1 => 3, HHN.FlowInfo(2, 1.0))]
         @test sort(subgraph) == [1 => 2, 2 => 3]
     end
 
@@ -151,7 +151,7 @@ end
     @test sort(flows) == [(1 => 6, 4 => 5, HHN.FlowInfo(1, adjmtx[6, 1])),
                           (4 => 4, 2 => 2, HHN.FlowInfo(0, adjmtx[4, 4])),
                           (5 => 2, 3 => 1, HHN.FlowInfo(1, adjmtx[7, 5])), # 7 is a member of 1st component that provides highest weight
-                          (5 => 6, 3 => 5, HHN.FlowInfo(2, adjmtx[6, 5])),
+                          (5 => 6, 3 => 5, HHN.FlowInfo(2, adjmtx[6, 7])),
                           (7 => 2, 1 => 1, HHN.FlowInfo(0, adjmtx[3, 7])), # 3 - 7 has highest walk weight
                           (7 => 6, 1 => 5, HHN.FlowInfo(1, adjmtx[6, 7]))]
     @test sort(subgraph) == [(1 => 6, 4 => 5), (2 => 7, 1 => 1), (3 => 2, 1 => 1), (3 => 7, 1 => 1),
@@ -162,7 +162,7 @@ end
                         flowlen_sum=5, compflowlen_sum=5,
                         flowinvlen_sum=23/6, compflowinvlen_sum=23/6,
                         compflowlen_max=2,
-                        floweight_sum = 46.0, compfloweight_sum = 141.0,
+                        floweight_sum = 46.0, compfloweight_sum = 161.0,
                         flowavghopweight_sum = 23.0,
                         ncompsources=4, ncompsinks=3)
 

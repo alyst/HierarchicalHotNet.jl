@@ -1,9 +1,34 @@
 const Diedge = Pair{Int, Int}               # directed edge
-const FlowInfoWIP = Int                     # in-progress FlowInfo
+
 struct FlowInfo
-    len::Int        # shortest path
-    weight::Float64 # start => end walk weight
+    len::Int            # shortest path
+    minweight::Float64  # start => end walk weight FIXME support rev
+
+    FlowInfo(len::Integer = -1, minweight::Number = NaN) =
+        new(len, minweight)
 end
+
+const FlowInfoWIP = FlowInfo # in-progress FlowInfo
+
+isdefined(info::FlowInfo) = info.len >= 0
+
+# merges the two pathes to the same destination:
+# select the shortest, and with maxweight if both have similar length
+# FIXME support tree.rev (minweight should be maxweight then)
+function best(ainfo::FlowInfo, binfo::FlowInfo)
+    @assert isdefined(binfo)
+    if isdefined(ainfo)
+        return FlowInfo(min(ainfo.len, binfo.len),
+                        ainfo.len == binfo.len ? max(ainfo.minweight, binfo.minweight) :
+                        ainfo.len < binfo.len ? ainfo.minweight : binfo.minweight)
+    else
+        return binfo
+    end
+end
+
+addedge(info::FlowInfo, w::Number) =
+    FlowInfo(info.len >= 0 ? info.len + 1 : 1, info.len > 0 ? min(info.minweight, w) : w)
+
 const Flow = Tuple{Diedge, FlowInfo}        # flow: source=>target, data
 const CompDiedge = Tuple{Diedge, Diedge}    # directed edge from one component to the other (source comp => target comp, source vertex => target vertex)
 const CompFlow = Tuple{Diedge, Diedge, FlowInfo} # directed flow from one component to the other
@@ -34,17 +59,17 @@ function componentsflowgraph!(
     !isnothing(subgraph) && empty!(subgraph)
 
     # updates flows through vertex v using the flows from u and edge u->v weight (uv)
-    function updatereachable!(v::Integer, u::Integer)
+    function updatereachable!(v::Integer, u::Integer, w::Number)
         usinks = reachable[u]
         if isnothing(reachable[v])
             reachable[v] = vsinks = sizehint!(empty!(borrow!(setpool)), length(usinks))
-            for (i, ui_len) in usinks
-                vsinks[i] = ui_len+1
+            for (i, uipath) in usinks
+                vsinks[i] = addedge(uipath, w)
             end
         else
             vsinks = reachable[v]
-            for (i, ui_len) in usinks
-                vsinks[i] = min(get(vsinks, i, ui_len+1), ui_len+1)
+            for (i, uipath) in usinks
+                vsinks[i] = best(get(vsinks, i, FlowInfo()), addedge(uipath, w))
             end
         end
         return reachable
@@ -60,7 +85,7 @@ function componentsflowgraph!(
             if !visited[v] && !ispartempty(compsinks, v)
                 # initialize reachable list of not-yet-visited vertices
                 vsinks = empty!(borrow!(setpool))
-                vsinks[v] = 0
+                vsinks[v] = FlowInfo(0, adjmtx[v, v])
                 reachable[v] = vsinks
             end
             @assert edgeitstate >= 0
@@ -70,13 +95,13 @@ function componentsflowgraph!(
             while true
                 iter = iterate(edgeit, edgeitstate)
                 isnothing(iter) && break
-                (i, _), edgeitstate = iter
+                (i, w), edgeitstate = iter
                 if (i != v) && visited[i] &&
                    !isnothing(reachable[i]) && !isempty(reachable[i])
                     # since we require that flowgraph is DAG
                     # i should not be in the current dfs stack
                     # append flow to the reachable vertex to the used_edges list
-                    updatereachable!(v, i)
+                    updatereachable!(v, i, w)
                     !isnothing(subgraph) && push!(subgraph, (v => i))
                 elseif !visited[i]
                     u = i
@@ -93,7 +118,7 @@ function componentsflowgraph!(
                 if !ispartempty(compsources, v)
                     if !isnothing(reachable[v])
                         for (dest, vinfo) in reachable[v]
-                            push!(flows, (v => dest, FlowInfo(vinfo, adjmtx[dest, v])))
+                            push!(flows, (v => dest, vinfo))
                         end
                         # self-loop
                         !ispartempty(compsinks, v) && !isnothing(subgraph) && push!(subgraph, v => v)
@@ -103,7 +128,7 @@ function componentsflowgraph!(
                     prev, _ = dfs_stack[end]
                     if !isnothing(reachable[v])
                         !isnothing(subgraph) && push!(subgraph, prev => v)
-                        updatereachable!(prev, v)
+                        updatereachable!(prev, v, adjmtx[v, prev])
                     end
                 end
             end
@@ -405,7 +430,7 @@ function flowstats(
 
             compflowlen_sum += info.len
             compflowinvlen_sum += inv(info.len + 1)
-            compfloweight_sum += info.weight
+            compfloweight_sum += info.minweight
             compflowlen_max = max(compflowlen_max, info.len)
         end
         ncompflows = length(compflows)

@@ -45,7 +45,7 @@
             @test all(!isnan, treestats_ex_df.flow_avghopweight)
             @test treestats_ex_df.flow_avgweight ≈ [0.14953506817016599, 0.13783585159418063]
             @test treestats_ex_df.flow_avghopweight ≈ [0.11877205756069342, 0.10962421163253283]
-            @test treestats_ex_df.compflow_avgweight ≈ [0.29045570649885494, 0.16271554891289167]
+            @test treestats_ex_df.compflow_avgweight ≈ [0.29045570649885494, 0.16933645546777068]
             @test treestats_ex_df.flow_distance == [2/3, 26/9]
         end
     end
