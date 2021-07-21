@@ -1,3 +1,5 @@
+using SparseArrays
+
 abstract type AbstractOutedgesIterator{W <: Number} end
 
 Base.IteratorEltype(::Type{<:AbstractOutedgesIterator}) = Base.HasEltype()
@@ -31,6 +33,39 @@ end
         i += 1
         w = @inbounds(it.col[i])
         isvalidedge(w, it.test) && return (i => w, i)
+    end
+    return nothing
+end
+
+struct SparseMatrixOutedgesIterator{W <: Number, R <: AbstractVector, E <: EdgeTest} <: AbstractOutedgesIterator{W}
+    mtx::SparseMatrixCSC{W}
+    outrange::R
+    test::E
+
+    @inline function SparseMatrixOutedgesIterator(mtx::SparseMatrixCSC{W},
+                                                  v::Integer, test::EdgeTest{W}) where W
+        !isnothing(test.threshold) && (test.threshold <= 0) &&
+            throw(ArgumentError("EdgeTest with nonpositive thresholds are not supported for SparseMatrices"))
+        outrange = nzrange(mtx, v)
+        new{W, typeof(outrange), typeof(test)}(mtx, outrange, test)
+    end
+end
+
+@inline outedges(mtx::SparseMatrixCSC{W}, v::Integer,
+                 test::EdgeTest = EdgeTest{W}()) where W =
+    SparseMatrixOutedgesIterator(mtx, v, test)
+
+@inline function Base.iterate(it::SparseMatrixOutedgesIterator, i::Integer = 0)
+    if i != 0
+        @assert i >= first(it.outrange)-1
+    else
+        i = first(it.outrange)-1
+    end
+    l = last(it.outrange)
+    while i < l
+        i += 1
+        w = @inbounds(nonzeros(it.mtx)[i])
+        isvalidedge(w, it.test) && return (@inbounds(rowvals(it.mtx)[i]) => w, i)
     end
     return nothing
 end
