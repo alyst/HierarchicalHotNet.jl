@@ -573,7 +573,7 @@ end
 # given how the nodes are being expanded
 function expand_adjmatrix!(it::SCCTreeFlowsPeelingIterator, expanded::AbstractDict{NodeId, IndicesPartitionPart})
     # reindex the nodes
-    newix2id = Vector{NodeId}()
+    newix2id = sizehint!(Vector{NodeId}(), length(it.nodeix2id))
     for id in it.nodeix2id
         subnodeids = get(expanded, id, nothing)
         if subnodeids === nothing
@@ -586,7 +586,7 @@ function expand_adjmatrix!(it::SCCTreeFlowsPeelingIterator, expanded::AbstractDi
     # update the node and vertex indices
     vtx_adjmtx = it.peeling.vertex_iadjmtx
     vtx2newix = fill(0, size(vtx_adjmtx, 1))
-    for (ix, id) in enumerate(newix2id)
+    @inbounds for (ix, id) in enumerate(newix2id)
         node = it.nodes[id]
         node.index = ix
         vtx2newix[node.vertices] .= ix
@@ -612,13 +612,15 @@ function expand_adjmatrix!(it::SCCTreeFlowsPeelingIterator, expanded::AbstractDi
     vtxw = nonzeros(vtx_adjmtx)
     vtxrowvals = rowvals(vtx_adjmtx)
     vtxorder = sortperm(vtx2newix) # order the vertices by the indices in newadjmtx
-    for i in vtxorder
+    @inbounds for i in vtxorder
         newix = vtx2newix[i]
         if newix == 0
             continue # skip unused vertices
         elseif newix > length(newcolptr) # the new newadjmtx column started, add the column for the previous one
             appendcolumn(tmpcolw)
             fill!(tmpcolw, 0) # reset the column
+        else
+            @assert newix == length(newcolptr)
         end
         # update the tmpcolw with the edges of the i-th vertex
         vtxnzrange = nzrange(vtx_adjmtx, i)
