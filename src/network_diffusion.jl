@@ -86,20 +86,26 @@ of the random walk with restart taking into account the probabilities of visitin
 ### Parameters
 * `node_weights::AbstractVector`: vector of node restart probabilities
 * `restart_probability`: random walk restart probability
+* `node_weights_diffused`: precalculated node visiting weights for a random walk with restart
+  (in case the random matrix is already calculated before)
 * [`HierarchicalHotNet.stepmatrix`](@ref) keyword arguments
 """
 stabilized_stepmatrix(
             g::Union{AbstractMatrix, AbstractSimpleWeightedGraph},
             node_weights::AbstractVector;
             restart_probability::Union{Number, Nothing} = nothing,
+            node_weights_diffused::Union{Nothing, AbstractVector} = nothing,
             stepmtx_kwargs...) =
-    stabilized_stepmatrix(stepmatrix(g; stepmtx_kwargs...), node_weights, restart_probability)
+    stabilized_stepmatrix(stepmatrix(g; stepmtx_kwargs...), node_weights, restart_probability,
+                          node_weights_diffused = node_weights_diffused)
 
 function stabilized_stepmatrix(
             stepmtx::AbstractMatrix,
             node_weights::AbstractVector,
-            restart_probability::Number)
-    diffused_node_weights = random_walk_matrix(stepmtx, restart_probability) * node_weights
+            restart_probability::Number,
+            node_weights_diffused::Union{Nothing, AbstractVector} = nothing)
+    diffused_node_weights = node_weights_diffused !== nothing ? node_weights_diffused :
+        random_walk_matrix(stepmtx, restart_probability) * node_weights
     k = sum(node_weights)/sum(diffused_node_weights) # k to maintain the weights sum after diffusion
     return stepmtx * (k * (1 - restart_probability) * Diagonal(diffused_node_weights)) +
            convert(typeof(stepmtx), restart_probability * Diagonal(node_weights))
