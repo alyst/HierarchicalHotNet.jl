@@ -802,10 +802,12 @@ function flowstats(
     flowlen_sum = 0
     flowinvlen_sum = 0.0
     floweight_sum = 0.0
+    flow_minedgeweight_sum = isempty(peels.weights) ? NaN : 0.0
     flowavghopweight_sum = 0.0
     compflowlen_sum = 0
-    compflowinvlen_sum = 0
-    compfloweight_sum = isempty(peels.weights) ? NaN : 0.0
+    compflowinvlen_sum = 0.0
+    compfloweight_sum = 0.0
+    compflow_minedgeweight_sum = isempty(peels.weights) ? NaN : 0.0
     compflowlen_max = 0
     ncompflows = 0
     isnothing(used_sources) || empty!(used_sources)
@@ -846,6 +848,8 @@ function flowstats(
             end
             push!(sinknodes, path.sinkid)
             floweight_sum += cur_floweight_sum
+            compfloweight_sum += cur_floweight_sum / npairs
+
             flowlen_sum += npairs * path.len
             flowavghopweight_sum += cur_floweight_sum / (path.len + 1)
             flowinvlen_sum += npairs / (path.len + 1)
@@ -854,7 +858,9 @@ function flowstats(
             compflowinvlen_sum += inv(path.len + 1)
             compflowlen_max = max(compflowlen_max, path.len)
             if !isempty(peels.weights)
-                compfloweight_sum += path.minweight > 0 ? peels.weights[path.minweight] : peels.weights[peels.ithreshold]
+                comp_minedgeweight = path.minweight > 0 ? peels.weights[path.minweight] : peels.weights[peels.ithreshold]
+                flow_minedgeweight_sum += comp_minedgeweight * npairs
+                compflow_minedgeweight_sum += comp_minedgeweight
             end
         end
     end
@@ -865,6 +871,8 @@ function flowstats(
             compflowlen_max = compflowlen_max,
             floweight_sum = floweight_sum, compfloweight_sum = compfloweight_sum,
             flowavghopweight_sum = flowavghopweight_sum,
+            flow_minedgeweight_sum = flow_minedgeweight_sum,
+            compflow_minedgeweight_sum = compflow_minedgeweight_sum,
             ncompsources = length(peels.flows),
             ncompsinks = length(sinknodes))
 end

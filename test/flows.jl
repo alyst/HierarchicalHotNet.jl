@@ -162,8 +162,9 @@ end
                         flowlen_sum=5, compflowlen_sum=5,
                         flowinvlen_sum=23/6, compflowinvlen_sum=23/6,
                         compflowlen_max=2,
-                        floweight_sum = 46.0, compfloweight_sum = 161.0,
+                        floweight_sum = 46.0, compfloweight_sum = 46.0,
                         flowavghopweight_sum = 23.0,
+                        flow_minedgeweight_sum = 161.0, compflow_minedgeweight_sum = 161.0,
                         ncompsources=4, ncompsinks=3)
 
     @testset "Flows only" begin

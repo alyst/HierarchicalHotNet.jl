@@ -268,6 +268,8 @@ function treecut_stats(tree::SCCTree;
         res.flow_avgweight = Float64[]
         res.flow_avghopweight = Float64[]
         res.compflow_avgweight = Float64[]
+        res.flow_avgminedgeweight = Float64[]
+        res.compflow_avgminedgeweight = Float64[]
         res.flow_distance = Float64[]
         res.compflow_distance = Float64[]
 
@@ -337,6 +339,8 @@ function treecut_stats(tree::SCCTree;
                 :flow_avgweight => flstats.floweight_sum / nvtxflows_max,
                 :flow_avghopweight => flstats.flowavghopweight_sum / nvtxflows_max,
                 :compflow_avgweight => flstats.compfloweight_sum / ncompflows_max,
+                :flow_avgminedgeweight => flstats.flow_minedgeweight_sum / nvtxflows_max,
+                :compflow_avgminedgeweight => flstats.compflow_minedgeweight_sum / ncompflows_max,
                 :flow_distance => ((nvtxflows_max - flstats.nflows) * (length(comps) + 1) + flstats.flowlen_sum) / nvtxflows_max,
                 :compflow_distance => ((ncompflows_max - flstats.ncompflows) * (length(comps) + 1) + flstats.compflowlen_sum) / ncompflows_max)
         end
