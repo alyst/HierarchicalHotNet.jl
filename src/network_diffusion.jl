@@ -125,7 +125,8 @@ function stabilized_stepmatrix(
             node_weights_diffused::Union{Nothing, AbstractVector} = nothing)
     diffused_node_weights = node_weights_diffused !== nothing ? node_weights_diffused :
         random_walk_matrix(stepmtx, restart_probability) * node_weights
-    k = sum(node_weights)/sum(diffused_node_weights) # k to maintain the weights sum after diffusion
+    diffsum = sum(diffused_node_weights)
+    k = diffsum != 0 ? sum(node_weights)/diffsum : 0.0 # k to maintain the weights sum after diffusion
     return stepmtx * (k * (1 - restart_probability) * Diagonal(diffused_node_weights)) +
            convert(typeof(stepmtx), restart_probability * Diagonal(node_weights))
 end
