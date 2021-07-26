@@ -100,7 +100,8 @@ function stabilized_stepmatrix(
             node_weights::AbstractVector,
             restart_probability::Number)
     diffused_node_weights = random_walk_matrix(stepmtx, restart_probability) * node_weights
-    return stepmtx * ((1 - restart_probability) * Diagonal(diffused_node_weights)) +
+    k = sum(node_weights)/sum(diffused_node_weights) # k to maintain the weights sum after diffusion
+    return stepmtx * (k * (1 - restart_probability) * Diagonal(diffused_node_weights)) +
             convert(Matrix, restart_probability * Diagonal(node_weights))
 end
 
