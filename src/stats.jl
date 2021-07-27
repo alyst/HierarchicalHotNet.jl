@@ -433,10 +433,11 @@ const TreecutMetrics = [
     :topn_nsources, :topn_nsinks,
     :ncompsources, :ncompsinks,
     :nflows, :ncompflows,
-    :flow_avglen, :flow_avginvlen,
-    :compflow_avglen, :compflow_avginvlen,
-    :flow_avgweight, :flow_avghopweight,
-    :compflow_avgweight,
+    :flow_avglen, :compflow_avglen,
+    :flow_avginvlen, :compflow_avginvlen,
+    :flow_avgweight, :compflow_avgweight,
+    :flow_avgminedgeweight, :compflow_avgminedgeweight,
+    :flow_avghopweight,
     :flow_distance, :compflow_distance]
 
 function add_bins!(df::AbstractDataFrame, col::Symbol, bin_bounds::AbstractVector{<:Number})
