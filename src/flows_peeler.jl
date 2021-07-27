@@ -87,6 +87,7 @@ struct SCCTreeFlowsPeeling{T}
     function SCCTreeFlowsPeeling(tree::SCCTree{T}, adjmtx::AbstractMatrix,
                                 sources::AbstractVector{VertexId},
                                 sinks::AbstractVector{VertexId};
+                                sortvertices::Bool = false,
                                 verbose::Bool = false) where T
         iadjmtx, weights = indexvalues(IWeight, adjmtx, EdgeTest{eltype(adjmtx)}(rev=tree.rev))
         ithresholds = Vector{IWeight}(undef, length(tree.thresholds))
@@ -101,13 +102,14 @@ struct SCCTreeFlowsPeeling{T}
         spiadjmtx = sparse(iadjmtx)
         verbose && @info "SCCTreeFlowsPeels: $(size(spiadjmtx, 1)) vertice(s), $(nnz(spiadjmtx)) edge(s) with $(length(ithresholds)) threshold(s) imported"
 
-        return new{T}(tree, spiadjmtx, weights, ithresholds, Set(sources), Set(sinks), cache_node_vertices(tree)...)
+        return new{T}(tree, spiadjmtx, weights, ithresholds, Set(sources), Set(sinks),
+                      cache_node_vertices(tree, sortvertices=sortvertices)...)
     end
 end
 
 nthresholds(peeling::SCCTreeFlowsPeeling) = length(peeling.ithresholds)
 
-function cache_node_vertices(tree::SCCTree)
+function cache_node_vertices(tree::SCCTree; sortvertices::Bool=false)
     vtxparts = IndicesPartition()
     nodeindices = Dict{NodeId, Int}()
 
@@ -132,7 +134,7 @@ function cache_node_vertices(tree::SCCTree)
                 unsafe_copyto!(elems(vtxparts), nelms + 1, elems(vtxparts), first(childrange), length(childrange))
             end
             closepart!(vtxparts)
-            #sort!(vtxparts[end]) # sort vertices
+            sortvertices && sort!(vtxparts[end]) # sort vertices
             # add the node
             nodeindices[id] = length(vtxparts)
             pop!(nodestack)
@@ -173,9 +175,10 @@ end
 function eachflowspeel(tree::SCCTree, adjmtx::AbstractMatrix,
                        sources::AbstractVector{VertexId},
                        sinks::AbstractVector{VertexId};
+                       sortvertices::Bool=false,
                        verbose::Bool = false
 )
-    peeling = SCCTreeFlowsPeeling(tree, adjmtx, sources, sinks, verbose=verbose)
+    peeling = SCCTreeFlowsPeeling(tree, adjmtx, sources, sinks, sortvertices=sortvertices, verbose=verbose)
     return SCCTreeFlowsPeelingIterator(peeling, verbose=verbose)
 end
 
@@ -700,7 +703,7 @@ function reset!(it::SCCTreeFlowsPeelingIterator)
         rootid = 1
 
         it.nodes[rootid] = FlowsPeelNode(rootid, 1, 1:nvertices(peeling.tree),
-                                         collect(it.peeling.sources), collect(it.peeling.sinks), Set(1))
+                                         sort!(collect(it.peeling.sources)), sort!(collect(it.peeling.sinks)), Set(1))
         it.nodeix2id = [rootid]
         it.iadjmtx = spdiagm(0 => [it.ithreshold])
         it.flows[it.lastflowid += 1] = SourceFlowsPeel(1, rootid, false, it.ithreshold,

@@ -273,7 +273,7 @@ function treecut_stats(tree::SCCTree;
         res.flow_distance = Float64[]
         res.compflow_distance = Float64[]
 
-        peelit = eachflowspeel(tree, walkmatrix, sources, sinks, verbose=false)
+        peelit = eachflowspeel(tree, walkmatrix, sources, sinks, sortvertices=true, verbose=false)
         #iwalkmatrix, weights = indexvalues!(borrow!(arraypool(pools, Int32), size(walkmatrix)),
         #                                borrow!(arraypool(pools, eltype(walkmatrix))),
         #                                walkmatrix, EdgeTest{eltype(walkmatrix)}(rev=tree.rev))
