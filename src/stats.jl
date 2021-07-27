@@ -326,23 +326,25 @@ function treecut_stats(tree::SCCTree;
         if hasproperty(res, :nflows)
             flows, ithresholdpos = iterate(peelit, ithresholdpos)
             @assert threshold(flows) == thresh
-            flstats = flowstats(flows, maxweight=maxweight, sourcesinkweights=sourcesinkweights)
-            nvtxflows_max = length(sources)*length(sinks)
-            ncompflows_max = (newrow[:ncompsources]::Int)*(newrow[:ncompsinks]::Int)
+            if flows.modified # if flows unchanged, newrow already contains uptodate information
+                flstats = flowstats(flows, maxweight=maxweight, sourcesinkweights=sourcesinkweights)
+                nvtxflows_max = length(sources)*length(sinks)
+                ncompflows_max = (newrow[:ncompsources]::Int)*(newrow[:ncompsinks]::Int)
 
-            push!(newrow, :nflows => flstats.nflows,
-                :ncompflows => flstats.ncompflows,
-                :flow_avglen => flstats.flowlen_sum/flstats.nflows,
-                :flow_avginvlen => flstats.flowinvlen_sum/nvtxflows_max,
-                :compflow_avglen => flstats.compflowlen_sum/flstats.ncompflows,
-                :compflow_avginvlen => flstats.compflowinvlen_sum/ncompflows_max,
-                :flow_avgweight => flstats.floweight_sum / nvtxflows_max,
-                :flow_avghopweight => flstats.flowavghopweight_sum / nvtxflows_max,
-                :compflow_avgweight => flstats.compfloweight_sum / ncompflows_max,
-                :flow_avgminedgeweight => flstats.flow_minedgeweight_sum / nvtxflows_max,
-                :compflow_avgminedgeweight => flstats.compflow_minedgeweight_sum / ncompflows_max,
-                :flow_distance => ((nvtxflows_max - flstats.nflows) * (length(comps) + 1) + flstats.flowlen_sum) / nvtxflows_max,
-                :compflow_distance => ((ncompflows_max - flstats.ncompflows) * (length(comps) + 1) + flstats.compflowlen_sum) / ncompflows_max)
+                push!(newrow, :nflows => flstats.nflows,
+                    :ncompflows => flstats.ncompflows,
+                    :flow_avglen => flstats.flowlen_sum/flstats.nflows,
+                    :flow_avginvlen => flstats.flowinvlen_sum/nvtxflows_max,
+                    :compflow_avglen => flstats.compflowlen_sum/flstats.ncompflows,
+                    :compflow_avginvlen => flstats.compflowinvlen_sum/ncompflows_max,
+                    :flow_avgweight => flstats.floweight_sum / nvtxflows_max,
+                    :flow_avghopweight => flstats.flowavghopweight_sum / nvtxflows_max,
+                    :compflow_avgweight => flstats.compfloweight_sum / ncompflows_max,
+                    :flow_avgminedgeweight => flstats.flow_minedgeweight_sum / nvtxflows_max,
+                    :compflow_avgminedgeweight => flstats.compflow_minedgeweight_sum / ncompflows_max,
+                    :flow_distance => ((nvtxflows_max - flstats.nflows) * (length(comps) + 1) + flstats.flowlen_sum) / nvtxflows_max,
+                    :compflow_distance => ((ncompflows_max - flstats.ncompflows) * (length(comps) + 1) + flstats.compflowlen_sum) / ncompflows_max)
+            end
         end
         push!(res, newrow)
     end
