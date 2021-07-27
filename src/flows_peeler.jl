@@ -830,7 +830,7 @@ function flowstats(
 
             if !isnothing(sourcesinkweights)
                 cur_floweight_sum = 0.0 # all pairwise flows between the vertices of current components
-                for src in pathsources
+                @inbounds for src in pathsources
                     src_flows = view(sourcesinkweights, :, src)
                     for snk in pathsinks
                         floweight = src_flows[snk]
