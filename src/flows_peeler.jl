@@ -66,6 +66,15 @@ mutable struct SourceFlowsPeel
     paths::Vector{FlowSinkPath} # info about all source -> sink paths within the flow
 end
 
+# hash of the paths
+function pathshash(peel::SourceFlowsPeel, nodes::AbstractDict{NodeId, FlowsPeelNode})
+    res = hash(length(peel.paths))
+    for path in peel.paths
+        res = hash(nodes[path.sinkid].sinks, hash(path.minweight, hash(path.len, res)))
+    end
+    return res
+end
+
 Base.copy(flow::SourceFlowsPeel) =
     SourceFlowsPeel(flow.id, flow.srcid, flow.dirty, flow.minweight, flow.iadjmtx,
                     flow.vtxinfo, similar(flow.paths, 0))
@@ -188,9 +197,10 @@ struct SCCTreeFlowsPeels{T <: Number}
     weights::Vector{T}      # reference to SCCTreeFlowsPeeling.weights
     nodes::Dict{NodeId, FlowsPeelNode}  # active SCCTree nodes
     flows::Dict{FlowId, SourceFlowsPeel} # active source->sink flows
+    modified::Bool          # the flows modified in comparison to the previous iteration
 
-    SCCTreeFlowsPeels(it::SCCTreeFlowsPeelingIterator{T}) where T =
-        new{T}(it.ithreshold, it.peeling.weights, it.nodes, it.flows)
+    SCCTreeFlowsPeels(it::SCCTreeFlowsPeelingIterator{T}, modified::Bool) where T =
+        new{T}(it.ithreshold, it.peeling.weights, it.nodes, it.flows, modified)
 end
 
 threshold(peels::SCCTreeFlowsPeels) = peels.ithreshold > 0 ? peels.weights[peels.ithreshold] : NaN
@@ -728,14 +738,18 @@ function peel!(it::SCCTreeFlowsPeelingIterator; verbose::Bool = it.verbose)
     #@show expanded_nodes
     expand_adjmatrix!(it, expanded_nodes)
 
+    prevlastflowid = it.lastflowid
     expand_flows!(it, expanded_nodes, verbose=verbose)
+    modified = prevlastflowid != it.lastflowid # flows modified
     for nodeid in keys(expanded_nodes)
         @assert isempty(it.nodes[nodeid].flows) "Expanded node $nodeid still has some flows attached"
     end
     for flow in values(it.flows)
         !flow.dirty && (flow.minweight >= it.ithreshold) && continue # skip stronger flows
         verbose && @info "Flow #$(flow.id): updating"
+        prevpathshash = modified ? hash(0) : pathshash(flow, it.nodes)
         update!(flow, it, edgetest(it))
+        modified = modified || (prevpathshash != pathshash(flow, it.nodes))
         if isempty(flow.paths) # disconnect empty flows from their nodes
             for vtxinfo in flow.vtxinfo
                 node = get(it.nodes, vtxinfo.nodeid, nothing)
@@ -769,7 +783,7 @@ function peel!(it::SCCTreeFlowsPeelingIterator; verbose::Bool = it.verbose)
     for nodeid in keys(expanded_nodes)
         @assert !haskey(it.nodes, nodeid) "Expanded node $nodeid not removed"
     end
-    return it
+    return modified
 end
 
 function Base.iterate(it::SCCTreeFlowsPeelingIterator, ithreshpos::Integer = 0; verbose::Bool = it.verbose)
@@ -780,6 +794,7 @@ function Base.iterate(it::SCCTreeFlowsPeelingIterator, ithreshpos::Integer = 0; 
     if ithreshpos >= length(it)
         return nothing
     end
+    modified = true
     if it.ithreshold == 0
         reset!(it)
         if it.ithreshold == 0
@@ -787,10 +802,10 @@ function Base.iterate(it::SCCTreeFlowsPeelingIterator, ithreshpos::Integer = 0; 
             peel!(it, verbose=verbose)
         end
     else
-        peel!(it, verbose=verbose)
+        modified = peel!(it, verbose=verbose)
     end
 
-    return SCCTreeFlowsPeels(it), it.ithresholdpos
+    return SCCTreeFlowsPeels(it, modified), it.ithresholdpos
 end
 
 function flowstats(
