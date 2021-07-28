@@ -467,20 +467,31 @@ function bin_treecut_stats(
     by_cols::Union{AbstractVector{Symbol}, Symbol, Nothing} = nothing,
     threshold_range::Union{NTuple{2, Float64}, Nothing} = nothing,
     threshold_nbins::Integer = 100,
+    threshold_maxbinwidth::Union{Nothing, Number} = nothing,
     stat_cols::AbstractVector{Symbol} = intersect(TreecutMetrics, propertynames(cutstats_df)),
 )
     used_thresholds = threshold_range === nothing ? cutstats_df.threshold :
         filter(t -> threshold_range[1] <= t <= threshold_range[2],
                cutstats_df.threshold)
-    used_thresholds_range = extrema(used_thresholds)
-    threshold_bins = quantile(used_thresholds, 0.0:(1/threshold_nbins):1.0)
-    @assert length(threshold_bins) == threshold_nbins+1
+    sort!(used_thresholds)
+    thresh_bins = sizehint!(similar(used_thresholds, 0), threshold_nbins)
+    lastbinindex = 0
+    for (i, thresh) in enumerate(used_thresholds)
+        if isempty(thresh_bins) || # first threshold
+        # enough thresholds in the bin or last threshold
+        (last(thresh_bins) < thresh) && (((i + 1 - lastbinindex) * threshold_nbins >= length(used_thresholds)) || (i == length(used_thresholds))) ||
+        # too wide threshold
+        !isnothing(threshold_maxbinwidth) && ((thresh - last(thresh_bins)) >= threshold_maxbinwidth)
+            push!(thresh_bins, thresh)
+            lastbinindex = i
+        end
+    end
 
     # copy to avoid modifying original frame
     cutstats_df = isa(cutstats_df, DataFrame) ?
             copy(cutstats_df, copycols=false) :
             select(cutstats_df, [stat_cols; by_cols; [:threshold]])
-    add_bins!(cutstats_df, :threshold, threshold_bins)
+    add_bins!(cutstats_df, :threshold, thresh_bins)
 
     if by_cols isa AbstractVector
         used_by_cols = push!(copy(by_cols), :threshold_bin)
@@ -496,9 +507,9 @@ function bin_treecut_stats(
     binstats_df.threshold_binmid = missings(Float64, nrow(binstats_df))
     binstats_df.threshold_binmax = missings(Float64, nrow(binstats_df))
     @inbounds for (i, bin) in enumerate(binstats_df.threshold_bin)
-        (0 < bin < threshold_nbins) || continue
-        binstats_df.threshold_binmin[i] = binmin = threshold_bins[bin]
-        binstats_df.threshold_binmax[i] = binmax = threshold_bins[bin+1]
+        (0 < bin < length(thresh_bins)) || continue
+        binstats_df.threshold_binmin[i] = binmin = thresh_bins[bin]
+        binstats_df.threshold_binmax[i] = binmax = thresh_bins[bin+1]
         binstats_df.threshold_binmid[i] = 0.5*(binmin + binmax)
     end
     return binstats_df
