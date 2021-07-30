@@ -6,11 +6,14 @@ diffusion* allows assessing complex molecular networks and revealing various top
 structures, such as hubs, communities etc.
 
 Currently, *HierarchicalHotNet.jl* package implements [*random walk with restart*](https://en.wikipedia.org/wiki/Random_walk)
-diffusion method. The input weighted graph is processed by [`stepmatrix](@ref) function,
-which prepares for random walk, and then submitted to [`random_walk_with_restart](@ref).
+diffusion method. The input weighted graph is processed by [`stepmatrix()`](@ref HierarchicalHotNet.stepmatrix) function,
+which prepares the *adjacency matrix* for the random walk.
+The resulting matrix is then submitted to [`random_walk_with_restart()`](@ref HierarchicalHotNet.random_walk_with_restart) method that generates
+the matrix of random walk transition probabilities.
 
 ## [Node and edge weights](@id netweights)
 
+TODO
 
 ```@docs
 HierarchicalHotNet.stepmatrix
@@ -26,8 +29,8 @@ results based on real the data differ significantly from the ones based on rando
 meaningful patterns are expected.
 
 In the original HierarchicalHotNet paper by [_Reina et al (2018)_](https://academic.oup.com/bioinformatics/article/34/17/i972/5093236)
-it is proposed to group the vertices with similar in- and out-degrees into bins (see [`vertexbins`](@ref))
-and randomly shuffle the weights of the vertices within each bin (see [`randpermgroups`](@ref)).
+it is proposed to group the vertices with similar in- and out-degrees into bins (see [`vertexbins()`](@ref HierarchicalHotNet.vertexbins))
+and randomly shuffle the weights of the vertices within each bin (see [`randpermgroups()`](@ref HierarchicalHotNet.randpermgroups)).
 
 This scheme would reassign the weights of hub vertices to other hubs, and low-degree vertices --
 to other low-degree vertices. So, in addition to preserving the overall distribution of node weights,
