@@ -1,4 +1,4 @@
-using Test
+using Test, Compat
 using HierarchicalHotNet, SimpleWeightedGraphs, LightGraphs
 using LinearAlgebra, DataFrames
 
