@@ -11,6 +11,9 @@ which prepares the *adjacency matrix* for the random walk.
 The resulting matrix is then submitted to [`random_walk_with_restart()`](@ref HierarchicalHotNet.random_walk_with_restart) method that generates
 the matrix of random walk transition probabilities.
 
+Alternatively, one can use [`stabilized_stepmatrix()`](@ref HierarchicalHotNet.stabilized_stepmatrix) method to weight the
+edges of the original network according to how frequently their are being utilized during the random walk.
+
 ## [Node and edge weights](@id netweights)
 
 TODO
@@ -19,6 +22,7 @@ TODO
 HierarchicalHotNet.stepmatrix
 HierarchicalHotNet.random_walk_matrix
 HierarchicalHotNet.similarity_matrix
+HierarchicalHotNet.stabilized_stepmatrix
 HierarchicalHotNet.neighborhood_weights
 ```
 
