@@ -77,6 +77,12 @@
         @test ptn_copy.starts !== ptn.starts
         @test ptn_copy.elems !== ptn.elems
 
+        ptn_copy2 = HHN.Partition{Char}()
+        copyto!(ptn_copy2, ptn)
+        @test ptn_copy2 == ptn
+        @test ptn_copy2.starts !== ptn.starts
+        @test ptn_copy2.elems !== ptn.elems
+
         i = 0
         for pt in ptn
             i += 1

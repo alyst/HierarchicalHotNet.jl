@@ -105,11 +105,13 @@ function Base.empty!(ptn::Partition)
     return ptn
 end
 
-function Base.copy!(a::Partition{T}, b::Partition{T}) where T
-    copy!(a.elems, b.elems)
-    copy!(a.starts, b.starts)
+function Base.copyto!(a::Partition{T}, b::Partition{T}) where T
+    copyto!(a.elems, b.elems)
+    copyto!(a.starts, b.starts)
     return a
 end
+
+Base.copy!(a::Partition, b::Partition) = Base.copyto!(a, b)
 
 function Base.filter!(f, dest::Partition{T}, src::Partition{T}) where T
     empty!(dest)
