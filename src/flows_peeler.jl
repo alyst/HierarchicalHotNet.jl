@@ -110,9 +110,10 @@ struct SCCTreeFlowsPeeling{T}
         end
         spiadjmtx = sparse(iadjmtx)
         verbose && @info "SCCTreeFlowsPeels: $(size(spiadjmtx, 1)) vertice(s), $(nnz(spiadjmtx)) edge(s) with $(length(ithresholds)) threshold(s) imported"
+        node_indices, node_vertices = cache_node_vertices(tree, sortvertices=sortvertices)
 
         return new{T}(tree, spiadjmtx, weights, ithresholds, Set(sources), Set(sinks),
-                      cache_node_vertices(tree, sortvertices=sortvertices)...)
+                      node_indices, node_vertices)
     end
 end
 
