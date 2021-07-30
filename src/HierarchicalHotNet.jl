@@ -1,5 +1,6 @@
 module HierarchicalHotNet
 
+using Compat
 using Random, LinearAlgebra, LightGraphs, SimpleWeightedGraphs,
       Statistics, StatsBase, Distributions, HypothesisTests,
       Distances, Clustering,
