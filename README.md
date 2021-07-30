@@ -5,7 +5,7 @@ the altered networks.
 
 | Docs | Build | Test | DOI |
 |:-----|:------|:-----|:----|
-| [![](https://img.shields.io/badge/docs-latest-blue.svg)](https://alyst.github.io/HierarchicalHotNet.jl/dev) | [![Build Status](https://travis-ci.org/alyst/HierarchicalHotNet.jl.svg)](https://travis-ci.org/alyst/HierarchicalHotNet.jl) | [![codecov](http://codecov.io/github/alyst/HierarchicalHotNet.jl/branch/master/graph/badge.svg)](http://codecov.io/github/alyst/HierarchicalHotNet.jl) | [![DOI](https://zenodo.org/badge/244656363.svg)](https://zenodo.org/badge/latestdoi/244656363) |
+| [![](https://img.shields.io/badge/docs-latest-blue.svg)](https://alyst.github.io/HierarchicalHotNet.jl/dev) | [![Build Status](https://github.com/alyst/HierarchicalHotNet.jl/workflows/CI/badge.svg)](https://github.com/alyst/HierarchicalHotNet.jl/actions?query=workflow%3ACI+branch%3Amaster) | [![Codecov](https://codecov.io/gh/alyst/HierarchicalHotNet.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/alyst/HierarchicalHotNet.jl) | [![DOI](https://zenodo.org/badge/244656363.svg)](https://zenodo.org/badge/latestdoi/244656363) |
 
 The original *Python* implementation by [RaphaelLab](http://compbio.cs.brown.edu/) is available at [hierarchical-hotnet](https://github.com/raphael-group/hierarchical-hotnet) GitHub repository.
 
