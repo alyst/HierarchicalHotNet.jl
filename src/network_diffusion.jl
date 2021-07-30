@@ -36,7 +36,7 @@ stepmatrix(g::AbstractSimpleWeightedGraph; kwargs...) =
 """
     random_walk_matrix(g::AbstractSimpleWeightedGraph,
                        restart_probability::Number=0.1;
-                       stepmtx_kwargs...)
+                       stepmtx_kwargs...) -> Matrix{Float64}
 
 Calculate the stationary distribution of vertex transition probabilities
 for a random walk with restart on graph `g`.
@@ -64,7 +64,7 @@ end
     similarity_matrix(g::AbstractSimpleWeightedGraph,
                       node_weights::AbstractVector;
                       restart_probability::Union{Number, Nothing} = nothing,
-                      stepmtx_kwargs...)
+                      stepmtx_kwargs...) -> Matrix{Float64}
 
 Calculate the matrix of node transition probabilities for the random walk with restart
 taking into account the node restarting probabilities `node_weights`.
@@ -75,7 +75,7 @@ considering all possible starting vertices of graph `g`.
 ### Parameters
   * `node_weights::AbstractVector`: vector of node restart probabilities
   * `restart_probability`: random walk restart probability
-  * [HierarchicalHotNet.stepmatrix](@ref) keyword arguments
+  * [`stepmatrix()`](@ref HierarchicalHotNet.stepmatrix) keyword arguments
 
 ### See also
 [HierarchicalHotNet.random_walk_matrix](@ref)
@@ -91,7 +91,7 @@ similarity_matrix(g::Union{AbstractMatrix, AbstractSimpleWeightedGraph},
     stabilized_stepmatrix(g::AbstractSimpleWeightedGraph,
                           node_weights::AbstractVector;
                           restart_probability::Union{Number, Nothing} = nothing,
-                          stepmtx_kwargs...)
+                          stepmtx_kwargs...) -> Matrix{Float64}
 
 Calculate the matrix for the node transition probabilities at each iteration
 of the random walk with restart taking into account the probabilities of visiting the nodes.
@@ -107,7 +107,7 @@ for a random walk with restart, then
   * `restart_probability`: random walk restart probability
   * `node_weights_diffused`: precalculated node visiting weights for a random walk with restart
     (in case the random matrix is already calculated before)
-  * [HierarchicalHotNet.stepmatrix](@ref) keyword arguments
+  * [`stepmatrix()`](@ref HierarchicalHotNet.stepmatrix) keyword arguments
 """
 stabilized_stepmatrix(
             g::Union{AbstractMatrix, AbstractSimpleWeightedGraph},
@@ -131,6 +131,15 @@ function stabilized_stepmatrix(
            convert(typeof(stepmtx), restart_probability * Diagonal(node_weights))
 end
 
+"""
+    neighborhood_weights(adjmtx::AbstractMatrix, g::AbstractGraph) -> Vector{Float64}
+
+Given the `adjmtx` adjacency matrix for the graph ``g'`` and the graph `g`, calculate
+the sum of the weights of the ``g'`` outgoing edges that are also present in `g`.
+Returns the vector with the weights sum for each vertex.
+
+The graphs have to have the same number of nodes.
+"""
 function neighborhood_weights(adjmtx::AbstractMatrix, g::AbstractGraph)
     check_square(adjmtx, "Adjacency matrix")
     n = size(adjmtx, 1)
