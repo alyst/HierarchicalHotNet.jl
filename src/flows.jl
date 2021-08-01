@@ -509,7 +509,8 @@ function traceflows!(
         throw(DimensionMismatch("Steps adjacency matrix must be square ($(size(step_adjmtx)) given)"))
     size(walk_adjmtx) == size(step_adjmtx) ||
         throw(DimensionMismatch("Steps and walk adjacency matrices must have equal sizes ($(size(step_adjmtx)) and $(size(walk_adjmtx)) given)"))
-    (maxsteps > 0) || throw(ArgumentError("maxsteps must be positive ($(maxsteps) given)"))
+    (maxsteps >= 0) || throw(ArgumentError("maxsteps must be non-negative ($(maxsteps) given)"))
+    (maxsteps == 0) && return flow2paths
 
     vtxsetpool = objpool(pools, Set{Int})
     visited = empty!(borrow!(vtxsetpool)) # local visited vertex
