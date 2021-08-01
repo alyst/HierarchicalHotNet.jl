@@ -590,6 +590,7 @@ function extreme_treecut_stats(
     extra_join_cols::Union{Nothing, AbstractVector{Symbol}} = nothing,
     metric_cols::AbstractVector{Symbol} = intersect(TreecutMetrics, propertynames(stats_df)),
     threshold_weight = nothing,
+    relative::Bool = false,
     stat_maxquantile::Union{Nothing, Number} = 0.25,
     threshold_range::Union{Tuple{<:Number, <:Number}, Nothing} = nothing
 )
@@ -608,7 +609,8 @@ function extreme_treecut_stats(
         reduce(vcat, [begin
             perm_col = Symbol(col, "_1")
             res = reduce(vcat, [begin
-                deltas = [ismissing(r[col]) || ismissing(r[perm_col]) || isnan(r[col]) || isnan(r[perm_col]) ? naval : r[col] - r[perm_col]
+                deltas = [ismissing(r[col]) || ismissing(r[perm_col]) || isnan(r[col]) || isnan(r[perm_col]) || (relative && r[perm_col] == 0) ? naval :
+                          (r[col] - r[perm_col]) / (relative ? abs(r[perm_col]) : 1.0)
                           for r in eachrow(df)]
                 if thres_weights !== nothing
                     deltas .*= thres_weights
