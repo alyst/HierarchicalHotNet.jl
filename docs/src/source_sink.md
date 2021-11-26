@@ -60,7 +60,7 @@ where ``N_{\mathrm{source}}`` and ``N_{\mathrm{sink}}`` are the numbers of sourc
 (so ``N_{\mathrm{source}} \cdot N_{\mathrm{sink}}`` is the number of all possible distinct flows),
 ``\mathrm{flows}(H)`` are all the source-to-sink flows of ``H``, and ``N_{\mathrm{SCC}}(f)`` is the
 number of distinct strongly connected components that contain the nodes of the ``f`` flow.
-This metric changes from 1 (all sources and sinks in the same stongly connected component) to 0
+This metric changes from 1 (all sources and sinks in the same strongly connected component) to 0
 (no or infinitely long flows).
 This metric is available as `flow_avginvlen` column in the [HierarchicalHotNet.treecomp_stats](@ref) output.
 
