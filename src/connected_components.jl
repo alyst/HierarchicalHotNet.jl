@@ -7,7 +7,7 @@ strongly_connected_components(adjmtx::AbstractMatrix{T},
     strongly_connected_components!(IndicesPartition(Vector{Int}(undef, size(adjmtx, 1)), Vector{Int}()),
                                    adjmtx, test, pools)
 
-# Adapted/adopted from LightGraphs.jl
+# Adapted/adopted from Graphs.jl
 function strongly_connected_components!(components::IndicesPartition,
                                         adjmtx::AbstractMatrix{T},
                                         test::EdgeTest{T},

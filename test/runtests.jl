@@ -1,5 +1,5 @@
 using Test, Compat
-using HierarchicalHotNet, SimpleWeightedGraphs, LightGraphs
+using HierarchicalHotNet, SimpleWeightedGraphs, Graphs
 using LinearAlgebra, DataFrames
 
 const HHN = HierarchicalHotNet

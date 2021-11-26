@@ -21,7 +21,7 @@
 
     @testset "scctree(method=:$method)" for method in [:bottomup, :bisect]
         g0tree = HHN.scctree(g0, verbose=false, method=method)
-        @test HHN.weighttype(g0tree) === eltype(LightGraphs.weights(g0))
+        @test HHN.weighttype(g0tree) === eltype(Graphs.weights(g0))
         @test HHN.nvertices(g0tree) == 0
         @test HHN.nthresholds(g0tree) == 0
         @test isempty(g0tree.thresholds)

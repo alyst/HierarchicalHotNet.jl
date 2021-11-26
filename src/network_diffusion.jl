@@ -31,7 +31,7 @@ function stepmatrix(adjmtx::AbstractMatrix{<:Number};
 end
 
 stepmatrix(g::AbstractSimpleWeightedGraph; kwargs...) =
-    stepmatrix(LightGraphs.adjacency_matrix(g, dir=:in); kwargs...)
+    stepmatrix(Graphs.adjacency_matrix(g, dir=:in); kwargs...)
 
 """
     random_walk_matrix(g::AbstractSimpleWeightedGraph,

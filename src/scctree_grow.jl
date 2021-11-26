@@ -172,7 +172,7 @@ Supports weighted graph objects as well as their adjacency matrix representation
    weaker than smaller ones
 """
 scctree(g::AbstractSimpleWeightedGraph; kwargs...) =
-    scctree(LightGraphs.weights(g), skipval=zero(eltype(LightGraphs.weights(g))); kwargs...)
+    scctree(Graphs.weights(g), skipval=zero(eltype(Graphs.weights(g))); kwargs...)
 
 function scctree(adjmtx::AbstractMatrix; method::Symbol=:bisect,
                  skipval::Union{Number, Nothing} = zero(eltype(adjmtx)),
