@@ -16,7 +16,7 @@ few enhancements and additional functionality:
   * edge weights indexing for faster building of SCC tree
   * taking into account node *in-* and *out-degree* when reshuffling the node weights
     for randomized input data
-* [*source-sink analysis*](https://alyst.github.io/HierarchicalHotNet.jl/dev/sourcesink.html) for identifying paths from the set of *source* nodes to
+* [*source-sink analysis*](https://alyst.github.io/HierarchicalHotNet.jl/dev/source_sink.html) for identifying paths from the set of *source* nodes to
   the *sink* nodes
 * calculation of edge *p-*values using randomized networks
 * export the network as data frames of vertices, edges and connected components
