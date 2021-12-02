@@ -139,43 +139,51 @@ cut(tree::SCCTree, threshold::Number; kwargs...) =
 function cut!(comps::IndicesPartition, tree::SCCTree, threshold::Number;
               minsize::Integer=1)
     empty!(comps)
-    if !isempty(tree.nodes)
-        cut_subtree!(comps, tree, threshold, minsize, 1,
-                     first(tree.nodes).threshold)
-    end
-    return comps
-end
+    isempty(tree.nodes) && return comps
 
-# helper method for cut!()
-# cuts the subtree specified by the nodeindex at given threshold
-# the cutting (generating new components) depends on parent_threshold (threshold of the parents)
-function cut_subtree!(comps::IndicesPartition, tree::SCCTree,
-                      threshold::Number, minsize::Integer,
-                      nodeindex::Int, parent_threshold::Number)
-    node = tree.nodes[nodeindex]
-    (nvertices(node) < minsize) && return
-    notweaker = !isnan(node.threshold) && !isweaker(node.threshold, threshold, rev=tree.rev)
-    if notweaker
-        #@info "node #$(nodeindex) threshold=$(node.threshold), marking as component #$nextcompindex"
-        appendvertices!(comps, tree, nodeindex)
-    else
-        for child in node.children
-            cut_subtree!(comps, tree, threshold, minsize, child, node.threshold)
-        end
-        # vertices are in a component of its own
-        if minsize <= 1
+    nodestack = [(1, first(tree.nodes).threshold)]
+    while !isempty(nodestack)
+        nodeindex, parent_threshold = pop!(nodestack)
+        if nodeindex < 0 # second processing of the node
+            # just add the node vertices (to its own component)
+            # without descending to its children as it was already done before
+            node = tree.nodes[-nodeindex]
             @inbounds for vertex in node.vertices
                 pushelem!(comps, vertex)
                 closepart!(comps)
             end
+            continue
         end
-        return
+        node = tree.nodes[nodeindex]
+        (nvertices(node) < minsize) && continue # skip small nodes
+        notweaker = !isnan(node.threshold) && !isweaker(node.threshold, threshold, rev=tree.rev)
+        if notweaker
+            #@info "node #$(nodeindex) threshold=$(node.threshold), marking as component #$nextcompindex"
+            appendvertices!(comps, tree, nodeindex)
+            if (nodeindex == 1) || isnan(parent_threshold) ||
+                    isweaker(parent_threshold, threshold, rev=tree.rev)
+                #@info "node #$(nodeindex) (size=$(node.nvertices), threshold=$(node.threshold)): parent threshold is $(parent_threshold), so advancing component $(nextcompindex+1)"
+                closepart!(comps)
+                sort!(comps[end]) # sort the vertices in a component
+            end
+        else
+            if !isempty(node.children)
+                if minsize <= 1 && !isempty(node.vertices)
+                    # append the vertices of the node after its children
+                    push!(nodestack, (-nodeindex, node.threshold))
+                end
+                # descend to children, so that the children would be processed from first to last
+                for child in Iterators.reverse(node.children)
+                    push!(nodestack, (child, node.threshold))
+                end
+            elseif minsize <= 1
+                # each vertex is in a component of its own
+                @inbounds for vertex in node.vertices
+                    pushelem!(comps, vertex)
+                    closepart!(comps)
+                end
+            end
+        end
     end
-    if (nodeindex == 1) || isnan(parent_threshold) ||
-       isweaker(parent_threshold, threshold, rev=tree.rev)
-        #@info "node #$(nodeindex) (size=$(node.nvertices), threshold=$(node.threshold)): parent threshold is $(parent_threshold), so advancing component $(nextcompindex+1)"
-        closepart!(comps)
-        sort!(comps[end]) # sort the vertices in a component
-    end
-    nothing
+    return comps
 end
