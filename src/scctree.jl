@@ -105,18 +105,21 @@ Base.:(==)(a::SCCTree{T}, b::SCCTree{T}) where T =
 function appendvertices!(vertices::AbstractVector, tree::SCCTree,
                          nodeindex::Integer)
     (nodeindex >= 1) || throw(ArgumentError("Incorrect node index ($nodeindex)"))
-    @inbounds node = tree.nodes[nodeindex]
-    @inbounds for vertex in node.vertices
-        if vertices isa Partition # FIXME ugly way to append to a partition
-            pushelem!(vertices, vertex)
-        else
-            push!(vertices, vertex)
+    nodestack = [nodeindex]
+    while !isempty(nodestack)
+        node = tree.nodes[pop!(nodestack)]
+
+        @inbounds for vertex in node.vertices
+            if vertices isa Partition # FIXME ugly way to append to a partition
+                pushelem!(vertices, vertex)
+            else
+                push!(vertices, vertex)
+            end
         end
+        # descend to children (reverse to keep the processing order from the first to the last child)
+        append!(nodestack, Iterators.reverse(node.children))
     end
-    for child in node.children
-        appendvertices!(vertices, tree, child)
-    end
-    nothing
+    return vertices
 end
 
 """
