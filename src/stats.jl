@@ -443,7 +443,7 @@ const TreecutMetrics = [
     :flow_distance, :compflow_distance]
 
 function add_bins!(df::AbstractDataFrame, col::Symbol, bin_bounds::AbstractVector{<:Number})
-    df[:, string(col, "_bin")] .= searchsortedlast.(Ref(bin_bounds), df[!, col])
+    df[:, string(col, "_bin")] .= searchsortedlast.(Ref(bin_bounds), df[:, col])
     return df
 end
 
