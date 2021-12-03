@@ -27,31 +27,34 @@ end
 function _graph_stats!(res::AbstractDataFrame,
     weights::AbstractArray{<:Number, N},
     walkweights::AbstractArray{<:Number, N},
-    permweights::AbstractArray{<:Number},
-    walkpermweights::AbstractArray{<:Number}
+    permweights::Union{AbstractArray{<:Number}, Nothing} = nothing,
+    walkpermweights::Union{AbstractArray{<:Number}, Nothing} = nothing
 ) where N
-    permw_mtx = reshape(permweights, (prod(size(permweights)[1:N]), size(permweights, N+1)))
-    permwalkw_mtx = reshape(walkpermweights, (prod(size(walkpermweights)[1:N]), size(walkpermweights, N+1)))
-
     res.weight = copy(weights) |> vec
-    res.permweight_mean, res.permweight_std,
-    res.permweight_median, res.permweight_mad,
-    res.nless_weight, res.ngreater_weight = _permweight_stats(res.weight, permw_mtx)
-    res.weight_delta = res.weight - res.permweight_median
+    if !isnothing(permweights)
+        permw_mtx = reshape(permweights, (prod(size(permweights)[1:N]), size(permweights, N+1)))
+        res.permweight_mean, res.permweight_std,
+        res.permweight_median, res.permweight_mad,
+        res.nless_weight, res.ngreater_weight = _permweight_stats(res.weight, permw_mtx)
+        res.weight_delta = res.weight - res.permweight_median
+    end
 
     res.walkweight = copy(walkweights) |> vec
-    res.walkpermweight_mean, res.walkpermweight_std,
-    res.walkpermweight_median, res.walkpermweight_mad,
-    res.nless_walkweight, res.ngreater_walkweight = _permweight_stats(res.walkweight, permwalkw_mtx)
-    res.walkweight_delta = res.walkweight - res.walkpermweight_median
+    if !isnothing(walkpermweights)
+        permwalkw_mtx = reshape(walkpermweights, (prod(size(walkpermweights)[1:N]), size(walkpermweights, N+1)))
+        res.walkpermweight_mean, res.walkpermweight_std,
+        res.walkpermweight_median, res.walkpermweight_mad,
+        res.nless_walkweight, res.ngreater_walkweight = _permweight_stats(res.walkweight, permwalkw_mtx)
+        res.walkweight_delta = res.walkweight - res.walkpermweight_median
+    end
     return res
 end
 
 """
     vertex_stats(weights::AbstractVector{<:Number},
                  walkweights::AbstractVector{<:Number},
-                 permweights::AbstractMatrix{<:Number},
-                 walkpermweights::AbstractMatrix{<:Number}) -> DataFrame
+                 [permweights::AbstractMatrix{<:Number}],
+                 [walkpermweights::AbstractMatrix{<:Number}]) -> DataFrame
 
 Calculates statistics for the permuted vertex weights distribution and how it
 is different from the actual weights.
@@ -71,8 +74,9 @@ for the weights of the original matrix (`weights`) as well as random walk matrix
 """
 function vertex_stats(weights::AbstractVector{<:Number},
                       walkweights::AbstractVector{<:Number},
-                      permweights::AbstractMatrix{<:Number},
-                      walkpermweights::AbstractMatrix{<:Number})
+                      permweights::Union{AbstractMatrix{<:Number}, Nothing} = nothing,
+                      walkpermweights::Union{AbstractMatrix{<:Number}, Nothing} = nothing
+)
     (length(weights) == size(permweights, 1)) ||
         throw(DimensionMismatch("Original weights length ($(length(weights))) doesn't match the permuted weights length $(size(permweights, 1))"))
     (length(weights) == length(walkweights)) ||
@@ -91,8 +95,8 @@ end
 """
     diedge_stats(weights::AbstractVector{<:Number},
                  walkweights::AbstractVector{<:Number},
-                 permweights::AbstractMatrix{<:Number},
-                 walkpermweights::AbstractMatrix{<:Number}) -> DataFrame
+                 [permweights::AbstractMatrix{<:Number}],
+                 [walkpermweights::AbstractMatrix{<:Number}]) -> DataFrame
 
 Calculates statistics for the directed edges permuted weights distribution and how it
 is different from the actual weights of directed edges.
@@ -101,8 +105,9 @@ The output is similar to [`HieararchicalHotNet.vertex_stats`](@ref) for vertices
 """
 function diedge_stats(weights::AbstractMatrix{<:Number},
                       walkweights::AbstractMatrix{<:Number},
-                      permweights::AbstractArray{<:Number, 3},
-                      walkpermweights::AbstractArray{<:Number, 3})
+                      permweights::Union{AbstractArray{<:Number, 3}, Nothing} = nothing,
+                      walkpermweights::Union{AbstractArray{<:Number, 3}, Nothing} = nothing
+)
     check_square(weights, "weight matrix")
     (size(weights) == size(walkweights)) ||
         throw(DimensionMismatch("Original weights size ($(size(weights))) doesn't match the random walk weights size $(size(walkweights))"))
@@ -121,16 +126,16 @@ end
 function diedge_stats(nvertices::Integer, diedge_indices::AbstractVector{<:Integer},
                       weights::AbstractVector{<:Number},
                       walkweights::AbstractVector{<:Number},
-                      permweights::AbstractMatrix{<:Number},
-                      walkpermweights::AbstractMatrix{<:Number}
+                      permweights::Union{AbstractMatrix{<:Number}, Nothing} = nothing,
+                      walkpermweights::Union{AbstractMatrix{<:Number}, Nothing} = nothing
 )
     (length(diedge_indices) == length(weights)) ||
         throw(DimensionMismatch("Diedge indices count ($(length(diedge_indices))) doesn't match the weights count $(length(weights))"))
     (length(weights) == length(walkweights)) ||
         throw(DimensionMismatch("Weights length ($(length(weights))) doesn't match the random walk weights length $(length(walkweights))"))
-    (length(weights) == size(permweights, 1)) ||
+    isnothing(permweights) || (length(weights) == size(permweights, 1)) ||
         throw(DimensionMismatch("Original weights length ($(length(weights))) doesn't match the permuted weights length $(size(permweights, 1))"))
-    (length(weights) == size(walkpermweights, 1)) ||
+    isnothing(walkpermweights) || (length(weights) == size(walkpermweights, 1)) ||
         throw(DimensionMismatch("Original weights length ($(length(weights))) doesn't match the permuted random walk weights length $(size(walkpermweights, 1))"))
 
     all_diedges = CartesianIndices((nvertices, nvertices))
