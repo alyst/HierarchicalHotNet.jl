@@ -31,7 +31,7 @@ function _graph_stats!(res::AbstractDataFrame,
     walkpermweights::AbstractArray{<:Number}
 ) where N
     permw_mtx = reshape(permweights, (prod(size(permweights)[1:N]), size(permweights, N+1)))
-    permwalkw_mtx = reshape(walkpermweights, (prod(size(walkpermweights)[1:N]), size(permweights, N+1)))
+    permwalkw_mtx = reshape(walkpermweights, (prod(size(walkpermweights)[1:N]), size(walkpermweights, N+1)))
 
     res.weight = copy(weights) |> vec
     res.permweight_mean, res.permweight_std,
@@ -104,14 +104,12 @@ function diedge_stats(weights::AbstractMatrix{<:Number},
                       permweights::AbstractArray{<:Number, 3},
                       walkpermweights::AbstractArray{<:Number, 3})
     check_square(weights, "weight matrix")
+    (size(weights) == size(walkweights)) ||
+        throw(DimensionMismatch("Original weights size ($(size(weights))) doesn't match the random walk weights size $(size(walkweights))"))
     (size(weights) == size(permweights, (1, 2))) ||
         throw(DimensionMismatch("Original weights size ($(size(weights))) doesn't match the permuted weights size $(size(permweights, (1, 2)))"))
-    (size(weights) == size(walkweights)) ||
-        throw(DimensionMismatch("Original weights size ($(size(weights))) doesn't match the random walk weights size $(size(permweights))"))
     (size(weights) == size(walkpermweights, (1, 2))) ||
-        throw(DimensionMismatch("Weights size ($(size(weights))) doesn't match the permuted random walk weights size $(size(walkpermweights, (1, 2)))"))
-    (size(permweights, 2) == size(walkpermweights, 32)) ||
-        throw(DimensionMismatch("Weights permutations count ($(size(permweights, 2))) doesn't match the random walk permutations count $(size(walkpermweights, 3))"))
+        throw(DimensionMismatch("Original weights size ($(size(weights))) doesn't match the permuted random walk weights size $(size(walkpermweights, (1, 2)))"))
 
     res = DataFrame(
             src = getindex.(Ref(CartesianIndices(weights)), 2),
@@ -128,14 +126,12 @@ function diedge_stats(nvertices::Integer, diedge_indices::AbstractVector{<:Integ
 )
     (length(diedge_indices) == length(weights)) ||
         throw(DimensionMismatch("Diedge indices count ($(length(diedge_indices))) doesn't match the weights count $(length(weights))"))
-    (length(weights) == size(permweights, 1)) ||
-        throw(DimensionMismatch("Original weights length ($(length(weights))) doesn't match the permuted weights length $(size(permweights, 1))"))
     (length(weights) == length(walkweights)) ||
         throw(DimensionMismatch("Weights length ($(length(weights))) doesn't match the random walk weights length $(length(walkweights))"))
+    (length(weights) == size(permweights, 1)) ||
+        throw(DimensionMismatch("Original weights length ($(length(weights))) doesn't match the permuted weights length $(size(permweights, 1))"))
     (length(weights) == size(walkpermweights, 1)) ||
-        throw(DimensionMismatch("Weights length ($(length(weights))) doesn't match the permuted random walk weights length $(size(walkpermweights, 1))"))
-    (size(permweights, 2) == size(walkpermweights, 2)) ||
-        throw(DimensionMismatch("Weights permutations count ($(size(permweights, 2))) doesn't match the random walk permutations count $(size(walkpermweights, 2))"))
+        throw(DimensionMismatch("Original weights length ($(length(weights))) doesn't match the permuted random walk weights length $(size(walkpermweights, 1))"))
 
     all_diedges = CartesianIndices((nvertices, nvertices))
     res = DataFrame(
