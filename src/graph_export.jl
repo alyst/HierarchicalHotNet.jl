@@ -170,6 +170,10 @@ function export_flowgraph(
         (pos > 0) && (vertices_df[pos, :is_steptrace] = true)
     end
     if !isnothing(vertices_stats)
+        if verbose
+            missed_vertices_df = antijoin(vertices_df, vertices_stats, on=:vertex)
+            (nrow(missed_vertices_df)>0) && @warn("vertices_stats missing information on $(nrow(missed_vertices_df)) of $(nrow(vertices_df)) vertice(s)")
+        end
         vertices_df = leftjoin(vertices_df, vertices_stats, on=:vertex)
     end
 
@@ -193,6 +197,10 @@ function export_flowgraph(
         diedges_df.flowpaths = [get(flow2paths, r.source => r.target, missing) for r in eachrow(diedges_df)]
     end
     if !isnothing(diedges_stats)
+        if verbose
+            missed_diedges_df = antijoin(diedges_df, diedges_stats, on=[:source, :target])
+            (nrow(missed_diedges_df)>0) && @warn("diedges_stats missing information on $(nrow(missed_diedges_df)) of $(nrow(diedges_df)) diedge(s)")
+        end
         diedges_df = leftjoin(diedges_df, diedges_stats, on=[:source, :target])
     end
 
