@@ -64,7 +64,7 @@ function export_flowgraph(
     verbose::Bool=false,
     pools::Union{ObjectPools, Nothing}=nothing,
     mincompsize::Union{Integer, Nothing}=nothing,
-    exported_sinks::AbstractVector{<:Integer}=sinks
+    exported_sinks::Union{AbstractVector{<:Integer}, Nothing}=sinks
 ) where T
     nvertices(tree) == size(walkmatrix, 1) == size(walkmatrix, 2) ||
         throw(DimensionMismatch("Number of tree vertices ($(nvertices(tree))) doesn't match the walk matrix dimensions ($(size(walkmatrix)))"))
@@ -158,9 +158,11 @@ function export_flowgraph(
         (pos > 0) && (vertices_df[pos, :is_source] = true)
     end
     vertices_df[!, :is_sink] .= false
-    @inbounds for v in exported_sinks
-        pos = vertex2pos[v]
-        (pos > 0) && (vertices_df[pos, :is_sink] = true)
+    if !isnothing(exported_sinks)
+        @inbounds for v in exported_sinks
+            pos = vertex2pos[v]
+            (pos > 0) && (vertices_df[pos, :is_sink] = true)
+        end
     end
     vertices_df[!, :is_steptrace] .= false
     @inbounds for v in extra_vtxs
