@@ -597,9 +597,46 @@ function extreme_treecut_stats(
 )
     join_cols = [:threshold_bin]
     isnothing(extra_join_cols) || unique!(append!(join_cols, extra_join_cols))
+
+    # bring the values from the 3 consequitive bins in one row
+    perm_aggstats_mid_df, perm_aggstats_prev_df, perm_aggstats_next_df = [begin
+        df = select(perm_aggstats_df, [[:quantile, :threshold_binmid]; join_cols; metric_cols])
+        df.threshold_bin .+= shift
+        rename!(df, [col => Symbol(col, suffix) for col in metric_cols])
+        rename!(df, :threshold_binmid => Symbol("threshold_bin", suffix))
+    end for (suffix, shift) in [("_mid", 0), ("_prev", +1), ("_next", -1)]]
+    perm_aggstats3_df = leftjoin(leftjoin(perm_aggstats_mid_df, perm_aggstats_next_df, on=[join_cols; :quantile]),
+                                 perm_aggstats_prev_df, on=[join_cols; :quantile])
+    # fill missing values on the edges with the closest non-missing ones
+    for col in [metric_cols; :threshold_bin]
+        perm_aggstats3_df[!, Symbol(col, "_prev")] .= coalesce.(
+            perm_aggstats3_df[!, Symbol(col, "_prev")],
+            perm_aggstats3_df[!, Symbol(col, "_mid")])
+        perm_aggstats3_df[!, Symbol(col, "_next")] .= coalesce.(
+            perm_aggstats3_df[!, Symbol(col, "_next")],
+            perm_aggstats3_df[!, Symbol(col, "_mid")])
+    end
     joinstats_df = leftjoin(select(stats_df, [join_cols; metric_cols; [:threshold]]),
-                            select(perm_aggstats_df, [join_cols; :quantile; metric_cols]),
-                            on=join_cols, makeunique=true)
+                            perm_aggstats3_df, on=join_cols)
+    # linearly interpolate perm metrics at the real threshold
+    for col in metric_cols
+        midcol = Symbol(col, "_mid")
+        prevcol = Symbol(col, "_prev")
+        nextcol = Symbol(col, "_next")
+        joinstats_df[!, Symbol(col, "_perm")] = [begin
+            t = r.threshold
+            tmid = r.threshold_bin_mid
+            if r.threshold < tmid
+                vend = r[prevcol]
+                tend = r.threshold_bin_prev
+            else
+                vend = r[nextcol]
+                tend = r.threshold_bin_next
+            end
+            k = (tmid - t)/(tmid - tend)
+            r[midcol] * (1 - k) + vend * k
+        end for r in eachrow(joinstats_df)]
+    end
     if !isnothing(threshold_range)
         filter!(r -> threshold_range[1] <= r.threshold <= threshold_range[2], joinstats_df)
     end
@@ -608,7 +645,7 @@ function extreme_treecut_stats(
     combine(groupby(joinstats_df, by_cols)) do df
         thres_weights = threshold_weight !== nothing ? threshold_weight.(eachrow(df)) : nothing
         reduce(vcat, [begin
-            perm_col = Symbol(col, "_1")
+            perm_col = Symbol(col, "_perm")
             res = reduce(vcat, [begin
                 deltas = [ismissing(r[col]) || ismissing(r[perm_col]) || isnan(r[col]) || isnan(r[perm_col]) || (relative && r[perm_col] == 0) ? naval :
                           (r[col] - r[perm_col]) / (relative ? abs(r[perm_col]) : 1.0)
