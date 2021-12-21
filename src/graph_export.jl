@@ -297,7 +297,12 @@ function export_flowgraph(
         end
         if hasproperty(edge_df, :diedge_type)
             res[!, :original_type] .= isnothing(orig1st) ? missing : edge_df.diedge_type[orig1st]
-            res[!, :original_rev_type] .= isnothing(orig1st_rev) ? missing : edge_df.diedge_type[orig1st_rev]
+            if isnothing(orig1st_rev)
+                res[!, :original_type_rev] .= hasproperty(edge_df, :diedge_type_rev) && !isnothing(orig1st) ?
+                    edge_df.diedge_type_rev[orig1st] : missing
+            else
+                res[!, :original_type_rev] .= edge_df.diedge_type[orig1st_rev]
+            end
         end
         if hasproperty(edge_df, :flowpaths)
             paths1st = findfirst(r -> !ismissing(r.flowpaths) && !r.is_reverse, eachrow(edge_df))
@@ -309,9 +314,19 @@ function export_flowgraph(
         # include data of the original diedges
         if orig_diedges !== nothing
             for col in names(orig_diedges)
-                (col == "source" || col == "target" || col == "diedge_type") && continue
+                (col == "source" || col == "target" || col == "diedge_type" || endswith(col, "_rev")) && continue
                 res[!, col] .= isnothing(orig1st) ? missing : edge_df[orig1st, col]
                 res[!, col * "_rev"] .= isnothing(orig1st_rev) ? missing : edge_df[orig1st_rev, col]
+            end
+            # update rev diedge columns afterwards
+            for col in names(orig_diedges)
+                endswith(col, "_rev") || continue
+                if isnothing(orig1st)
+                    (col in names(res)) && continue # use what was set before
+                    res[!, col] .= missing
+                else
+                    res[!, col] .= edge_df[orig1st, col]
+                end
             end
         end
         if !flow_edges && !any(res.has_walk)
