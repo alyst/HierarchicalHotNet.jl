@@ -238,7 +238,7 @@ function scctree_bisect_subtree!(tree::SCCSeedling, adjmtx::AbstractMatrix{<:Int
                                  subtree::AbstractVector{Int},
                                  subtree_threshold::Integer, nodes_threshold::Integer,
                                  parent_weights::AbstractVector;
-                                 verbose::Bool=false) where T
+                                 verbose::Bool=false)
     verbose && @info "scctree_bisect_range!($(subtree) nodes, subtree_threshold=$subtree_threshold, nodes_threshold=$nodes_threshold)"
     weights = sortediweights(tree, adjmtx, parent_weights)
     intpool = arraypool(tree.pools, Int)
