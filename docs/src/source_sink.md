@@ -23,21 +23,21 @@ based on the reshuffled node weights.
 
 ## [Network Metrics](@id network_metrics)
 
-It's is important to have a way to check the relevance of *HierarchicalHotNet* predictions.
+It is important to have a way to check the relevance of *HierarchicalHotNet* predictions.
 For example, one can [randomize the input data](@ref permweights) and show that, at some edge weight
 threshold ``t_*``, *HHotNet* predictions based on the real data, ``H(\mathcal{D}_{\mathrm{real}}, t_*)``,
-demnostrate significantly more order than the ones based on randomized data,
-``H(\mathcal{D}_{\mathrm{perm}}^i, t_*)``, ``i=1,2,\ldots,N_{\mathrm{perm}}``.
-If the "order" could be expressed as some metric ``m(H)``, then we can easily define
+demnostrate significantly more "order" than the ones based on randomized data,
+``H(\mathcal{D}_{\mathrm{perm}}, t_*)``.
+If the "order" could be expressed as some metric ``m(H)``, then we can define
 the ``p``-value for the hypothesis that ``H(\mathcal{D}_{\mathrm{real}}, t)`` is significantly
 more "ordered" than expected by chance:
 ```math
-p_m(H(\mathcal{D}_{\mathrm{real}}, t)) = P\big(M_{\mathrm{perm}}(t) \geq m(H(\mathcal{D}_{\mathrm{real}}, t)) \big),
+p_m(H(\mathcal{D}_{\mathrm{real}}, t)) = P\big(m(H(\mathcal{D}_{\mathrm{perm}}, t_*)) \geq m(H(\mathcal{D}_{\mathrm{real}}, t)) \big).
 ```
-where ``M_{\mathrm{perm}}(t)`` is a random variable derived from the empirical distribution
-of ``m(H(\mathcal{D}_{\mathrm{perm}}^i, t))``, ``i = 1, 2, \ldots, N_{\mathrm{perm}}``.
-The definition above was given for the case of ``m(H)`` growing with the increase of ``H`` "order".
-If the metric ``m`` decreases as the "order" of ``H`` grows, ``P(M \geq m(H))`` should be changed
+``p_m`` could be approximated by generating a family *HHotNet* prediction based on randomized data,
+``H(\mathcal{D}_{\mathrm{perm}}^i, t))``, ``i = 1, 2, \ldots, N_{\mathrm{perm}}``.
+The definition above was given for the metric ``m(H)`` that increases as ``H`` becomes more "ordered".
+If the metric ``m(H)`` decreases as the "order" of ``H`` grows, ``P(M \geq m(H))`` should be changed
 to ``P(M \leq m(H))``.
 
 In [_M.A. Reyna et al_ (2018)](https://academic.oup.com/bioinformatics/article/34/17/i972/5093236),
