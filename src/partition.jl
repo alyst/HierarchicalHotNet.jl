@@ -55,9 +55,23 @@ and maintain the same order as within each part.
 """
 elems(ptn::Partition) = ptn.elems
 
-# range of indices associated with i-th part
+"""
+    partrange(ptn::Partition, i::Integer) -> UnitRange{Int}
+
+Range of indices associated with `i`-th part.
+"""
 Base.@propagate_inbounds partrange(ptn::Partition, i::Integer) = ptn.starts[i]:ptn.starts[i+1]-1
+"""
+    partlength(ptn::Partition, i::Integer) -> Int
+
+Number of elements in `i`-th part.
+"""
 Base.@propagate_inbounds partlength(ptn::Partition, i::Integer) = (ptn.starts[i+1]-ptn.starts[i])
+"""
+    ispartempty(ptn::Partition, i::Integer) -> Bool
+
+Whether `i`-th part is empty.
+"""
 Base.@propagate_inbounds ispartempty(ptn::Partition, i::Integer) = partlength(ptn, i) == 0
 
 # fallback

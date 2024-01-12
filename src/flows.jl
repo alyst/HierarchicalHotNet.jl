@@ -260,6 +260,17 @@ function expand_componentsflowgraph!(
     return subgraph, flows
 end
 
+"""
+    flowgraph!(subgraph::Union{AbstractVector{CompDiedge}, Nothing},
+               flows::AbstractVector{CompFlow},
+               comps::IndicesPartition,
+               tree::SCCTree, adjmtx::AbstractMatrix,
+               sources::AbstractVector{Int}, sinks::AbstractVector{Int},
+               test::EdgeTest;
+               kwargs...) -> Tuple{AbstractVector{CompDiedge}, AbstractVector{CompFlow}, IndicesPartition}
+
+In-place version of [`HierarchicalHotNet.flowgraph`](@ref).
+"""
 function flowgraph!(
     subgraph::Union{AbstractVector{CompDiedge}, Nothing},
     flows::AbstractVector{CompFlow},
@@ -307,6 +318,16 @@ flowgraph!(
 ) = flowgraph!(subgraph, flows, cut!(empty!(comps), tree, test.threshold),
                adjmtx, sources, sinks, test, pools; kwargs...)
 
+"""
+    flowgraph(tree::SCCTree, adjmtx::AbstractMatrix,
+              sources::AbstractVector{Int}, sinks::AbstractVector{Int},
+              test::EdgeTest;
+              kwargs...) -> Tuple{AbstractVector{CompDiedge}, AbstractVector{CompFlow}, IndicesPartition}
+
+Constructs the flow graph from `sources` to `sinks` vertices using
+the strongly connected components `tree` and the graph defined by `adjmtx`.
+The `adjmtx` edge should pass the `test` to be included in the resulting graph.
+"""
 flowgraph(tree::SCCTree, adjmtx::AbstractMatrix,
           sources::AbstractVector{Int}, sinks::AbstractVector{Int},
           test::EdgeTest,
@@ -573,8 +594,8 @@ end
                walk_adjmtx::AbstractMatrix, walktest::EdgeTest;
                kwargs...) -> Dict{Diedge, Partition{Int}}
 
-Trace the random walk (specified by *walk_adjmtx* and *walktest*) steps in the original graph
-(given by *step_adjmtx* and *steptest*).
+Trace the random walk (specified by `walk_adjmtx` and `walktest`) steps in the original graph
+(given by `step_adjmtx` and `steptest`).
 
 See [`HierarchicalHotNet.traceflows!`](@ref) for the detailed description.
 """

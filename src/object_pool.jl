@@ -14,6 +14,8 @@ mutable struct ObjectPool{T} <: AbstractObjectPool{T}
 end
 
 """
+    release!(pool::ObjectPool{T}, obj::T) where T
+
 Releases an object acquired by `borrow!()` back into the pool.
 """
 function release!(pool::ObjectPool{T}, obj::T) where T
@@ -25,6 +27,8 @@ function release!(pool::ObjectPool{T}, obj::T) where T
 end
 
 """
+    borrow!(pool::ObjectPool{T}) where T -> T
+
 Gets an object from the pool.
 The returned object should be returned back to the pool using `release!()`.
 """
@@ -40,12 +44,17 @@ objtype(pool::AbstractObjectPool) = objtype(typeof(pool))
 
 const AbstractArrayPool{T} = AbstractObjectPool{Vector{T}}
 
+"""
+Alias for [`ObjectPool`](@ref HierarchicalHotNet.ObjectPool) for arrays.
+"""
 const ArrayPool{T} = ObjectPool{Vector{T}}
 
 Base.eltype(::Type{<:AbstractArrayPool{T}}) where T = T
 Base.eltype(pool::AbstractArrayPool) = eltype(typeof(pool))
 
 """
+    borrow!(pool::ArrayPool{T}, len::Integer = 0) where T -> T
+
 Gets an array of specific size from the pool.
 The returned array should be returned back to the pool using `release!()`.
 """
@@ -65,6 +74,8 @@ borrow!(::Type{T}, pool::AbstractArrayPool{T}, size=0) where T =
     borrow!(pool, size)
 
 """
+    release!(pool::ArrayPool{T}, arr::Array{T}) where T
+
 Releases an array returned by `borrow!()` back into the pool.
 """
 function release!(pool::ArrayPool{T}, arr::Array{T}) where T

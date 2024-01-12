@@ -61,9 +61,7 @@ function hhotnet_example_graph()
     return g
 end
 
-"""
-Generate the graph from the example in Figure 1 of Tarjan (1983).
-"""
+# Generate the graph from the example in Figure 1 of Tarjan (1983).
 function tarjan1983_example_graph()
     g = SimpleWeightedDiGraph(7)
     for (u, v, w) in [('a', 'b', 10), ('b', 'a', 12), ('b', 'c', 30), ('d', 'c',  6), ('d', 'e', 16),

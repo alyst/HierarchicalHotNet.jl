@@ -30,3 +30,29 @@ HierarchicalHotNet.repeat!
 HierarchicalHotNet.IndicesPartition
 HierarchicalHotNet.reset!
 ```
+
+# Matrix utilities
+
+```@docs
+HierarchicalHotNet.condense
+HierarchicalHotNet.condense!
+```
+
+# Object pools
+
+Set of utilities for managing object pools to reduce the GC stress.
+
+```@docs
+HierarchicalHotNet.ObjectPool
+HierarchicalHotNet.ArrayPool
+HierarchicalHotNet.NoopObjectPool
+HierarchicalHotNet.borrow!
+HierarchicalHotNet.release!
+HierarchicalHotNet.ObjectPools
+```
+
+# Other
+
+```@docs
+HierarchicalHotNet.hilbertorder
+```

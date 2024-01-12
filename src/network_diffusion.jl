@@ -78,7 +78,7 @@ considering all possible starting vertices of graph `g`.
   * [`stepmatrix()`](@ref HierarchicalHotNet.stepmatrix) keyword arguments
 
 ### See also
-[HierarchicalHotNet.random_walk_matrix](@ref)
+[`HierarchicalHotNet.random_walk_matrix`](@ref)
 """
 similarity_matrix(g::Union{AbstractMatrix, AbstractSimpleWeightedGraph},
     node_weights::AbstractVector;

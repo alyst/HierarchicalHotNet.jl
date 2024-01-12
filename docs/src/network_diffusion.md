@@ -8,11 +8,11 @@ structures, such as hubs, communities etc.
 Currently, *HierarchicalHotNet.jl* package implements [*random walk with restart*](https://en.wikipedia.org/wiki/Random_walk)
 diffusion method. The input weighted graph is processed by [`stepmatrix()`](@ref HierarchicalHotNet.stepmatrix) function,
 which prepares the *adjacency matrix* for the random walk.
-The resulting matrix is then submitted to [`random_walk_with_restart()`](@ref HierarchicalHotNet.random_walk_with_restart) method that generates
+The resulting matrix is then submitted to [`random_walk_matrix()`](@ref HierarchicalHotNet.random_walk_matrix) method that generates
 the matrix of random walk transition probabilities.
 
 Alternatively, one can use [`stabilized_stepmatrix()`](@ref HierarchicalHotNet.stabilized_stepmatrix) method to weight the
-edges of the original network according to how frequently their are being utilized during the random walk.
+edges of the original network according to how frequently their edges are being utilized during the random walk.
 
 ## [Node and edge weights](@id netweights)
 

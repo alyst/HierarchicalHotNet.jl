@@ -101,7 +101,7 @@ end
 Calculates statistics for the directed edges permuted weights distribution and how it
 is different from the actual weights of directed edges.
 
-The output is similar to [`HieararchicalHotNet.vertex_stats`](@ref) for vertices.
+The output is similar to [`HierarchicalHotNet.vertex_stats`](@ref) for vertices.
 """
 function diedge_stats(weights::AbstractMatrix{<:Number},
                       walkweights::AbstractMatrix{<:Number},
@@ -235,6 +235,12 @@ function conncomponents_stats(
 end
 
 """
+    treecut_stats(tree::SCCTree;
+                  [walkmatrix::AbstractMatrix],
+                  [maxweight::Number],
+                  [sources], [sinks], [sourcesinkweights], [top_count],
+                  [pools]) -> DataFrame
+
 Calculate SCC network statistic for each cutting threshold of `tree`.
 """
 function treecut_stats(tree::SCCTree;
@@ -375,6 +381,19 @@ function treecut_stats(tree::SCCTree;
     return res
 end
 
+"""
+    treecut_compstats(tree::SCCTree,
+                      vertex_weights::AbstractVector,
+                      vertex_walkweights::AbstractVector,
+                      perm_vertex_weights::AbstractMatrix,
+                      perm_vertex_walkweights::AbstractMatrix;
+                      [mannwhitney_tests::Bool],
+                      [pvalue_mw_max::Number],
+                      [pvalue_fisher_max::Number],
+                      [pools]) -> DataFrame
+
+Calculate SCC network statistic for each cutting threshold of `tree`.
+"""
 function treecut_compstats(tree::SCCTree,
     vertex_weights::AbstractVector,
     vertex_walkweights::AbstractVector,
@@ -424,8 +443,9 @@ function treecut_compstats(tree::SCCTree,
 end
 
 """
-[`treecut_stats`](@ref) metrics (dataframe columns) to consider for
-[`bin_treecut_stats`](@ref) and [`extreme_treecut_stats`](@ref).
+[`treecut_stats()`](@ref HierarchicalHotNet.treecut_stats) metrics (dataframe columns) to consider for
+[`bin_treecut_stats()`](@ref HierarchicalHotNet.bin_treecut_stats) and
+[`extreme_treecut_stats()`](@ref HierarchicalHotNet.extreme_treecut_stats).
 """
 const TreecutMetrics = [
     :ncomponents, :ncomponents_nontrivial,
@@ -458,7 +478,7 @@ end
 
 Bin treecut thresholds and calculate average statistics in each bin.
 
-Takes the output of [`HieararchicalHotNet.treecut_stats`](@ref) from
+Takes the output of [`HierarchicalHotNet.treecut_stats`](@ref) from
 multiple SCC trees (discriminated by `by_cols`), identifies the bind for
 treecut thresholds and calculates the average metric values (`stat_cols`)
 within each bin.
@@ -578,7 +598,7 @@ are maximal/minimal (depending on the metric).
   * `perm_aggstats_df`: aggregated binned permutated tree statistics calculated by [`aggregate_treecut_binstats`](@ref)
   * `extra_join_cols`: optional columns, in addition to `:threshold_bin` to use for joining `stats_df` and `perm_aggstats_df`
   * `metric_cols`: columns of `stats_df` and `perm_aggstats_df` containing treecut metrics
-     to consider for threshold calculation (see [`TreecutMetrics`](@ref))
+     to consider for threshold calculation (see [`TreecutMetrics`](@ref HierarchicalHotNet.TreecutMetrics))
   * `start_maxquantile`: if specified, calculates (in addition to minimal and maximal metric)
      the metric corresponding to the given quantile as well as ``1 - quantile``
   * `threshold_range`: if given, contrains metric statistic calculation to given min/max thresholds

@@ -43,7 +43,7 @@ to ``P(M \leq m(H))``.
 In [_M.A. Reyna et al_ (2018)](https://academic.oup.com/bioinformatics/article/34/17/i972/5093236),
 the ``m_{\max\mathrm{size}}(H)`` metric -- the size of the maximal strongly connected component -- was used,
 and it was shown that ``m_{\max\mathrm{size}}(H(\mathcal{D}_{\mathrm{real}}, t))`` is statistically significantly larger
-than at random for some ``t_*``. [`treecomp_stats()`](@ref HierarchicalHotNet.treecomp_stats) provides ``m_{\max\mathrm{size}}(t)``
+than at random for some ``t_*``. [`treecut_stats()`](@ref HierarchicalHotNet.treecut_stats) provides ``m_{\max\mathrm{size}}(t)``
 in `maxcomponent_size` column.
 It is also possible to use the total size of top *N* components (`topn_components_sizesum` column) or the number of
 non-trivial (larger than single node) SCCs (`ncomponents_nontrivial` column) for the same purpose.
@@ -62,9 +62,9 @@ where ``N_{\mathrm{source}}`` and ``N_{\mathrm{sink}}`` are the numbers of sourc
 number of distinct strongly connected components that contain the nodes of the ``f`` flow.
 This metric changes from 1 (all sources and sinks in the same strongly connected component) to 0
 (no or infinitely long flows).
-This metric is available as `flow_avginvlen` column in the [`treecomp_stats()`](@ref HierarchicalHotNet.treecomp_stats) output.
+This metric is available as `flow_avginvlen` column in the [`treecut_stats()`](@ref HierarchicalHotNet.treecut_stats) output.
 
-The alternative metrics for the flow analysis provided by [`treecomp_stats()`](@ref HierarchicalHotNet.treecomp_stats) are:
+The alternative metrics for the flow analysis provided by [`treecut_stats()`](@ref HierarchicalHotNet.treecut_stats) are:
  * the average transition probability of the flow (`flow_avgweight` column):
 ```math
 w_{\mathrm{avg. flow}}(H) = \frac{1}{N_{\mathrm{src}} \cdot N_{\mathrm{sink}}} \sum_{f \in \mathrm{flows}(H)} \min \big( w(\mathrm{source}(f), \mathrm{sink}(f)), w_{\max} \big),
@@ -80,7 +80,7 @@ w_{\mathrm{avg. hop}}(H) = \frac{1}{N_{\mathrm{src}} \cdot N_{\mathrm{sink}}} \s
 ```@docs
 HierarchicalHotNet.flowgraph
 HierarchicalHotNet.flowgraph!
-HierarchicalHotNet.nflows
+HierarchicalHotNet.flowstats
 HierarchicalHotNet.traceflows
 HierarchicalHotNet.traceflows!
 ```

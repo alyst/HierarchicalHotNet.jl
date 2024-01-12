@@ -18,4 +18,4 @@ current knowledge of cellular interactions and identify potential connections be
  * use random walk-based weighted graphs to generate [trees of *Strongly Connected Components*](@ref scctree)
  * analyze the [distribution of SCC metrics](@ref netstats) at each cutting threshold for
    read data-based SCC tree and the randomized ones
- * [cut the SCC tree at the optimal edge threshold](@ref scctree_cut) and [export](@ref export) the result as a collection of data frames
+ * [cut the SCC tree at the optimal edge threshold](@ref HierarchicalHotNet.cut) and [export](@ref HierarchicalHotNet.export_flowgraph) the result as a collection of data frames

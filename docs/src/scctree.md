@@ -2,6 +2,7 @@
 
 ```@docs
 HierarchicalHotNet.SCCTree
+HierarchicalHotNet.SCCTreeNode
 HierarchicalHotNet.scctree
 HierarchicalHotNet.cut
 ```

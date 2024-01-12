@@ -76,6 +76,11 @@ subgraph_adjacencymatrix(adjmtx::AbstractMatrix, comp_indices::AbstractVector{<:
     view(adjmtx, comp_indices, comp_indices)
 
 """
+    condense(A::AbstractMatrix{T}, node_groups::AbstractPartition,
+             [test::EdgeTest], [zerodiag::Bool]) where T -> Matrix{T}
+    condense(A::AbstractMatrix{T}, row_groups::AbstractPartition, col_groups::AbstractPartition,
+             [test::EdgeTest], [zerodiag::Bool]) where T -> Matrix{T}
+
 "Condenses" the matrix `A` by aggregating the values in the blocks of its
 elements defined by `row_groups` and `col_groups`.
 
@@ -85,9 +90,10 @@ elements defined by `row_groups` and `col_groups`.
   it's the minimal value (the edge with the smallest weight).
 """
 condense(A::AbstractMatrix{T}, node_groups::AbstractPartition,
-         test::EdgeTest = EdgeTest{T}()) where T =
+         test::EdgeTest = EdgeTest{T}();
+         zerodiag::Bool = false) where T =
     condense!(similar(A, length(node_groups), length(node_groups)), A,
-              node_groups, test)
+              node_groups, test, zerodiag=zerodiag)
 
 condense(A::AbstractMatrix{T},
          row_groups::AbstractPartition, col_groups::AbstractPartition,
@@ -97,6 +103,10 @@ condense(A::AbstractMatrix{T},
             row_groups, col_groups, test, zerodiag=zerodiag)
 
 """
+    condense!(B::AbstractMatrix{T}, A::AbstractMatrix{T},
+              node_groups::AbstractPartition,
+              test::EdgeTest{T} = EdgeTest{T}()) where T -> Matrix{T}
+
 "Condenses" the matrix `A` by aggregating the values in the blocks of its
 elements defined by `row_groups` and `col_groups`.
 
